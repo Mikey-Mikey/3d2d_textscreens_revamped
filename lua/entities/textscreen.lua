@@ -26,35 +26,40 @@ else
 		textscreen:SetMoveType( MOVETYPE_VPHYSICS )
 		textscreen:SetSolid( SOLID_VPHYSICS )
 		textscreen:EnableCustomCollisions( true )
-		textscreen:SetCustomCollisionCheck( true )
-		textscreen:CollisionRulesChanged()
+		--textscreen:SetCustomCollisionCheck( true )
 		textscreen:SetCollisionGroup( COLLISION_GROUP_WORLD )
 		local mass = 50
 		textscreen:GetPhysicsObject():SetMass( mass )
 		textscreen:SetSolidFlags( 0 )
 		textscreen:AddSolidFlags( FSOLID_CUSTOMRAYTEST )
 		textscreen:AddSolidFlags( FSOLID_CUSTOMBOXTEST )
+
+		textscreen:CollisionRulesChanged()
 	end
 
 	net.Receive( "UpdatePlayerCurrentTextscreenText", function()
 		local ply = net.ReadPlayer()
 		local txt = net.ReadString()
-		net.Start( "UpdatePlayerCurrentTextscreenText" )
-		net.WritePlayer( ply )
-		net.WriteString( txt )
-		net.Broadcast()
+		ply:SetNWString( "CurrentTextscreenText", txt )
 	end )
 
 	-- This is used to scale the textscreen physics based on the text length
 	net.Receive( "SetTextscreenText", function()
-		SetTextscreenText( net.ReadEntity(), net.ReadFloat(), net.ReadFloat() )
+		local textscreen = net.ReadEntity()
+		local w = net.ReadFloat()
+		local h = net.ReadFloat()
+		local txt = net.ReadString()
+
+		textscreen:SetNWString( "Text", txt )
+
+		SetTextscreenText( textscreen, w, h )
 	end )
 end
 
 function ENT:Initialize()
 	if SERVER then
 		self:SetModel( "models/hunter/blocks/cube05x05x05.mdl" )
-		self:SetMaterial( "models/wireframe" )
+		self:SetMaterial( "models/debug/debugwhite" )
 		self:SetRenderMode( RENDERMODE_TRANSCOLOR )
 	end
 
@@ -64,19 +69,24 @@ function ENT:Initialize()
 		self.size = Vector( 0, 0, 0 )
 		self.htmlPanel = nil--vgui.Create( "DHTML" )
 		--self.htmlPanel:SetSize( self.size[1], self.size[2] )
-		self:DrawShadow( false )
-		self.text = ""
+		self.firstFrame = true
+		self.nextRenderCheck = 0.1
+		self.modelColor = Color( 255, 0, 0, 5 )
+		self.sizeAnim = 0
+		self.shouldDraw = true
 	end
+	self:DrawShadow( false )
 end
 
 if CLIENT then
+
 	function ENT:SetSize( size )
 		self.size = size
 		self.htmlPanel:SetSize( self.size[1], self.size[2] )
 	end
 
 	function ENT:SetText( text )
-		self.text = text
+		self:SetNWString( "Text", text )
 	end
 
 	function ENT:Think()
@@ -87,6 +97,27 @@ if CLIENT then
 				physobj:SetPos( self:GetPos() )
 				physobj:SetAngles( self:GetAngles() )
 			end
+
+			if self.shouldDraw then
+				if self.sizeAnim <= 0 then
+					self:SetNoDraw( false )
+				end
+				self.sizeAnim = math.min( self.sizeAnim + FrameTime() * 2, 1 )
+			else
+				self.sizeAnim = math.max( 0, self.sizeAnim - FrameTime() * 2 )
+				if self.sizeAnim <= 0 then
+					self:SetNoDraw( not ( self:GetNWEntity( "owner" ) == LocalPlayer() and self.firstFrame ) )
+				end
+			end
+
+			self.nextRenderCheck = self.nextRenderCheck - FrameTime()
+
+			if self.nextRenderCheck <= 0 then
+				local renderDist = TEXTSCREEN_REVAMPED.RenderDistanceCVar:GetFloat() ^ 2
+				local eyeDist = LocalPlayer():EyePos():DistToSqr( self:GetPos() )
+				self.shouldDraw = ( self:GetNWEntity( "owner" ) == LocalPlayer() and self.firstFrame ) or eyeDist <= renderDist
+				self.nextRenderCheck = 0.1
+			end
 		end
 	end
 
@@ -95,130 +126,173 @@ if CLIENT then
 		self.htmlPanel:Remove()
 	end
 
+	function ENT:UpdateHTML()
+		if self.htmlPanel ~= nil then
+			self.htmlPanel:Remove()
+		end
+
+		self.htmlPanel = vgui.Create( "DHTML" )
+
+		self.htmlPanel:SetSize( 0, 0 )
+		local newHtml = [[
+			<head>
+				<meta name="referrer" content="origin" />
+				<style>
+					@font-face {
+						font-family: 'Spicy Sale'; /* The name you will use in CSS */
+						src: url('asset://garrysmod/resource/fonts/Spicy Sale.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
+					}
+					@font-face {
+						font-family: 'Segment'; /* The name you will use in CSS */
+						src: url('asset://garrysmod/resource/fonts/Segment.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
+					}
+					@font-face {
+						font-family: 'Coolvetica'; /* The name you will use in CSS */
+						src: url('asset://garrysmod/resource/fonts/Coolvetica.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
+					}
+					body {
+						background: transparent;
+						overflow: hidden;
+						overflow-wrap: anywhere;
+						margin: 0;
+						padding: 0;
+						transform: translateZ(0);
+						--font: 'Arial';
+						--size: 15;
+						--font-style: none;
+						--font-weight: initial;
+						--color: rgb(255, 255, 255);
+						--shadow-color: rgba( 0, 0, 0, 0.0 );
+						--shadow-blur: 1;
+						--shadow-x: 0;
+						--shadow-y: 0;
+						--stroke: 1;
+						--stroke-color: rgb( 0, 0, 0 );
+						paint-order: stroke fill;
+					}
+
+					.container {
+						display: flex;
+						position: relative;
+						width: max-content;
+						height: max-content;
+						padding: 2em;
+						align-items: center;
+						justify-content: center;
+						background: #fff0;
+						max-width: 1024px;
+						max-height: 1024px;
+					}
+					text {
+						display: inline;
+						position: relative;
+						text-align: center;
+						white-space: pre-wrap;
+						color: var(--color);
+						-webkit-text-stroke: calc( var( --stroke ) * 1px + 2px );
+						-webkit-text-stroke-color: var( --stroke-color );
+						font-family: var(--font);
+						font-size: calc( var(--size) * 1em );
+						font-style: var(--font-style);
+						font-weight: var(--font-weight);
+						text-shadow: calc( var( --shadow-x ) * 1em ) calc( var( --shadow-y ) * 1em ) calc( var( --shadow-blur ) * 0.1em ) var( --shadow-color );
+					}
+				</style>
+			</head>
+			<body>
+				<div class="container" id="main">
+		]]
+		local txt = self:GetNWString( "Text" )
+
+		txt = string.Replace( txt, ">\n", ">" ) -- Remove line breaks right after tags
+		txt = string.TrimRight( txt )
+
+		newHtml = newHtml .. txt
+		newHtml = newHtml .. "</div>"
+		newHtml = newHtml .. "</body>"
+
+		self.htmlPanel:SetHTML( newHtml )
+
+		self.htmlPanel:AddFunction( "textscreen", "resizeTextscreen", function( w, h )
+			--self.pixelScale = 0.1 * w * h / 1024^2
+			--w = w * self.pixelScale
+			--h = h * self.pixelScale
+
+			local scale = Vector( 0.5, w * self.pixelScale, h * self.pixelScale )
+			local sclMat = Matrix()
+			sclMat:SetScale( scale / ( self.originalModelSize[1] - 0.25 ) / 2 )
+			self:EnableMatrix( "RenderMultiply", sclMat )
+			self:SetRenderBounds( -scale, scale )
+			self:SetSize( Vector( w, h, 0 ) )
+
+			if LocalPlayer() ~= self:GetNWEntity( "owner" ) then return end
+
+			net.Start( "SetTextscreenText" )
+			net.WriteEntity( self )
+			net.WriteFloat( scale[2] )
+			net.WriteFloat( scale[3] )
+			net.WriteString( txt )
+			net.SendToServer()
+		end )
+
+		self.htmlPanel:QueueJavascript( [[
+			const elem = document.getElementById( "main" );
+			var rect = elem.getBoundingClientRect();
+			textscreen.resizeTextscreen( rect.width, rect.height );
+		]] )
+		self.htmlPanel:SetPaintedManually( true )
+	end
+
 	function ENT:Draw()
+		--[[
 		local renderDist = TEXTSCREEN_REVAMPED.RenderDistanceCVar:GetFloat() ^ 2
 		local eyeDist = EyePos():DistToSqr( self:GetPos() )
 
-		if eyeDist > renderDist then
+		if eyeDist > renderDist and not ( self:GetNWEntity( "owner" ) == LocalPlayer() and self.firstFrame ) then
 			return
 		end
-
-		if self.htmlPanel == nil and self.text ~= "" then
-			self.htmlPanel = vgui.Create( "DHTML" )
-			self.htmlPanel:SetSize( 0, 0 )
-			local newHtml = [[
-				<head>
-					<meta name="referrer" content="origin" />
-					<style>
-						@font-face {
-							font-family: 'Spicy Sale'; /* The name you will use in CSS */
-							src: url('asset://garrysmod/resource/fonts/Spicy Sale.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
-						}
-						@font-face {
-							font-family: 'Segment'; /* The name you will use in CSS */
-							src: url('asset://garrysmod/resource/fonts/Segment.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
-						}
-						@font-face {
-							font-family: 'Coolvetica'; /* The name you will use in CSS */
-							src: url('asset://garrysmod/resource/fonts/Coolvetica.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
-						}
-						body {
-							background: transparent;
-							overflow: hidden;
-							overflow-wrap: anywhere;
-							margin: 0;
-							padding: 0;
-							transform: translateZ(0);
-							--font: 'Arial';
-							--size: 15;
-							--font-style: none;
-							--color: rgb(255, 255, 255);
-							--shadow-color: rgba( 0, 0, 0, 0.0 );
-							--shadow-blur: 1;
-							--shadow-x: 0;
-							--shadow-y: 0;
-							--stroke: 1;
-							--stroke-color: rgb( 0, 0, 0 );
-						}
-
-						.container {
-							display: flex;
-							position: relative;
-							width: max-content;
-							height: max-content;
-							padding: 2em;
-							align-items: center;
-							justify-content: center;
-							background: #fff0;
-							max-width: 1024px;
-							max-height: 1024px;
-						}
-						text {
-							display: inline;
-							position: relative;
-							text-align: center;
-							white-space: pre-wrap;
-							color: var(--color);
-							-webkit-text-stroke: calc( var( --stroke ) * 1px + 1px ) var( --stroke-color );
-							font-family: var(--font);
-							font-size: calc( var(--size) * 1em );
-							font-style: var(--font-style);
-							text-shadow: calc( var( --shadow-x ) * 1em ) calc( var( --shadow-y ) * 1em ) calc( var( --shadow-blur ) * 0.1em ) var( --shadow-color );
-						}
-					</style>
-				</head>
-				<body>
-					<div class="container" id="main">
-			]]
-
-			local txt = self.text
-
-			txt = string.Replace( txt, ">\n", ">" ) -- Remove line breaks right after tags
-			txt = string.TrimRight( txt )
-
-			newHtml = newHtml .. txt
-			newHtml = newHtml .. "</div>"
-			newHtml = newHtml .. "</body>"
-
-			self.htmlPanel:SetHTML( newHtml )
-
-			self.htmlPanel:AddFunction( "textscreen", "resizeTextscreen", function( w, h )
-				--self.pixelScale = 0.1 * w * h / 1024^2
-				--w = w * self.pixelScale
-				--h = h * self.pixelScale
-
-				local scale = Vector( 0.5, w * self.pixelScale, h * self.pixelScale )
-				local sclMat = Matrix()
-				sclMat:SetScale( scale / ( self.originalModelSize[1] - 0.25 ) / 2 )
-				self:EnableMatrix( "RenderMultiply", sclMat )
-				self:SetRenderBounds( -scale, scale )
-				self:SetSize( Vector( w, h, 0 ) )
-
-				if LocalPlayer() ~= self:GetNW2Entity( "owner" ) then return end
-
-				net.Start( "SetTextscreenText" )
-				net.WriteEntity( self )
-				net.WriteFloat( scale[2] )
-				net.WriteFloat( scale[3] )
-				net.SendToServer()
-			end )
-
-			self.htmlPanel:QueueJavascript( [[
-				const elem = document.getElementById( "main" );
-				var rect = elem.getBoundingClientRect();
-				textscreen.resizeTextscreen( rect.width, rect.height );
-			]] )
+		]]
+		if self.htmlPanel == nil and self:GetNWString( "Text", "" ) ~= "" then
+			self:UpdateHTML()
 		end
 
 		if self.size[1] <= 0 or self.size[2] <= 0 then return end
+
+		local renderCube = IsValid( LocalPlayer():GetActiveWeapon() ) and LocalPlayer():GetActiveWeapon():GetClass() == "gmod_tool"
+		renderCube = renderCube or IsValid( LocalPlayer():GetActiveWeapon() ) and LocalPlayer():GetActiveWeapon():GetClass() == "weapon_physgun"
+
+		if renderCube and TEXTSCREEN_REVAMPED.ShowTextscreenBoundsCVar:GetBool() then
+			--self:DrawModel()
+
+			render.SetColorMaterial()
+
+			render.DrawBox(
+				self:GetPos(),
+				self:GetAngles(),
+				self:OBBMins(),
+				self:OBBMaxs(),
+				self.modelColor
+			)
+			
+			render.DrawWireframeBox(
+				self:GetPos(),
+				self:GetAngles(),
+				self:OBBMins(),
+				self:OBBMaxs(),
+				self.modelColor,
+				true
+			)
+		end
+
+		local scl = self.pixelScale * ( math.cos( math.pi + self.sizeAnim * math.pi ) * 0.5 + 0.5 )
 
 		local mat = Matrix()
 		mat:Translate( self:WorldSpaceCenter() )
 		mat:Rotate( self:GetAngles() )
 		mat:Rotate( Angle( 0, 90, 90 ) )
-		mat:Translate( Vector( -self.size[1], self.size[2], 0 ) * 0.5 * self.pixelScale )
+		mat:Translate( Vector( -self.size[1], self.size[2], 0 ) * 0.5 * scl )
 
-		vgui.Start3D2D( mat:GetTranslation(), mat:GetAngles(), self.pixelScale )
+		vgui.Start3D2D( mat:GetTranslation(), mat:GetAngles(), scl )
 			self.htmlPanel:Paint3D2D()
 		vgui.End3D2D()
 
@@ -226,17 +300,12 @@ if CLIENT then
 		mat:Translate( self:WorldSpaceCenter() )
 		mat:Rotate( self:GetAngles() )
 		mat:Rotate( Angle( 0, -90, 90 ) )
-		mat:Translate( Vector( -self.size[1], self.size[2], 0 ) * 0.5 * self.pixelScale )
+		mat:Translate( Vector( -self.size[1], self.size[2], 0 ) * 0.5 * scl )
 
-		vgui.Start3D2D( mat:GetTranslation(), mat:GetAngles(), self.pixelScale )
+		vgui.Start3D2D( mat:GetTranslation(), mat:GetAngles(), scl )
 			self.htmlPanel:Paint3D2D()
 		vgui.End3D2D()
 
-		local renderCube = IsValid( LocalPlayer():GetActiveWeapon() ) and LocalPlayer():GetActiveWeapon():GetClass() == "gmod_tool"
-		renderCube = renderCube or IsValid( LocalPlayer():GetActiveWeapon() ) and LocalPlayer():GetActiveWeapon():GetClass() == "weapon_physgun"
-
-		if renderCube then
-			self:DrawModel()
-		end
+		self.firstFrame = false
 	end
 end

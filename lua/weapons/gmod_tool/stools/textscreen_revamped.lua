@@ -16,11 +16,15 @@ if CLIENT then
 		{
 			name = "left"
 		},
+		{
+			name = "right"
+		},
 	}
 
 	language.Add( "tool.textscreen_revamped.name", "Text Screen Revamped" )
 	language.Add( "tool.textscreen_revamped.desc", "Creates a text screen." )
 	language.Add( "tool.textscreen_revamped.left", "Create a Text Screen." )
+	language.Add( "tool.textscreen_revamped.right", "Update a Text Screen." )
 
 	net.Receive( "SetTextscreenText", function()
 		local ply = net.ReadEntity()
@@ -33,6 +37,7 @@ if CLIENT then
 		end
 
 		ent:SetText( ply.textscreen_revamped.currentTextScreenText )
+		ent:UpdateHTML()
 	end )
 
 	net.Receive( "UpdatePlayerCurrentTextscreenText", function()
@@ -47,12 +52,21 @@ end
 function TOOL:LeftClick( trace )
 	if CLIENT then return true end
 
+	if CPPI and self:GetClientBool( "should_parent" ) and IsValid( trace.Entity ) then
+		local traceEnt = trace.Entity
+		if not traceEnt:CPPICanTool( self:GetOwner() ) then return false end
+	end
+
 	local ent = ents.Create( "textscreen" )
 	ent:SetPos( trace.HitPos + trace.HitNormal * 1 )
 	ent:SetAngles( trace.HitNormal:Angle() )
 	ent:Spawn()
 	ent:Activate()
-	ent:SetNW2Entity( "owner", self:GetOwner() )
+	ent:SetNWEntity( "owner", self:GetOwner() )
+
+	if CPPI then
+		ent:CPPISetOwner( self:GetOwner() )
+	end
 
 
 	if not IsValid( ent ) then return end
@@ -77,6 +91,11 @@ end
 function TOOL:RightClick( trace )
 	if CLIENT then return false end
 	local ent = trace.Entity
+
+	if CPPI and IsValid( ent ) then
+		local traceEnt = ent
+		if not traceEnt:CPPICanTool( self:GetOwner() ) then return false end
+	end
 
 	if IsValid( ent ) and ent:GetClass() == "textscreen" then
 		net.Start( "SetTextscreenText" )
@@ -193,6 +212,10 @@ garry's mod textscreens revamped
 		panel:AddItem( presetPanel )
 		panel:AddItem( textEdit )
 		panel:CheckBox( "Should Parent?", "textscreen_revamped_should_parent", false )
+		panel:Help( "This enables parenting to the entity you're looking at." )
+
+		panel:CheckBox( "Show Textscreen Bounds?", "textscreen_show_bounds" )
+		panel:Help( "This enables rendering bounds when holding either the toolgun or physgun." )
 
 		net.Start( "UpdatePlayerCurrentTextscreenText" )
 		net.WritePlayer(  LocalPlayer() )
