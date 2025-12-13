@@ -2,13 +2,13 @@ AddCSLuaFile()
 
 if SERVER then
 	util.AddNetworkString( "SetTextscreenText" )
+	util.AddNetworkString( "UpdatePlayerCurrentTextscreenText" )
 end
 
 TOOL.Author = "Mikey"
 TOOL.Name = "#tool.textscreen_revamped.name"
 TOOL.Category = "Text Screens Revamped"
-TOOL.ClientConVar["size_x"] = 500
-TOOL.ClientConVar["size_y"] = 300
+TOOL.ClientConVar["should_parent"] = 1
 
 
 if CLIENT then
@@ -26,16 +26,21 @@ if CLIENT then
 		local ply = net.ReadEntity()
 		local ent = net.ReadEntity()
 		local updated = net.ReadBool()
-		local sizeX = net.ReadFloat()
-		local sizeY = net.ReadFloat()
 
 		-- Since traces are going through the entity, I'm playing a fake tool sound just so the player knows they're doing something.
 		if LocalPlayer() == ply and updated then
 			surface.PlaySound( "Airboat.FireGunRevDown" )
 		end
 
-		ent:SetSize( Vector( sizeX, sizeY, 0 ) )
 		ent:SetText( ply.textscreen_revamped.currentTextScreenText )
+	end )
+
+	net.Receive( "UpdatePlayerCurrentTextscreenText", function()
+		local ply = net.ReadPlayer()
+		local txt = net.ReadString()
+		if ply == LocalPlayer() then return end
+		ply.textscreen_revamped = ply.textscreen_revamped or {}
+		ply.textscreen_revamped.currentTextScreenText = txt
 	end )
 end
 
@@ -49,18 +54,15 @@ function TOOL:LeftClick( trace )
 	ent:Activate()
 	ent:SetNW2Entity( "owner", self:GetOwner() )
 
-	timer.Simple( 0.1, function()
-		if not IsValid( ent ) then return end
-		net.Start( "SetTextscreenText" )
-		net.WriteEntity( self:GetOwner() )
-		net.WriteEntity( ent )
-		net.WriteBool( false )
-		net.WriteFloat( self:GetClientNumber( "size_x" ) )
-		net.WriteFloat( self:GetClientNumber( "size_y" ) )
-		net.Broadcast()
-	end )
 
-	if IsValid( trace.Entity ) then
+	if not IsValid( ent ) then return end
+	net.Start( "SetTextscreenText" )
+	net.WriteEntity( self:GetOwner() )
+	net.WriteEntity( ent )
+	net.WriteBool( false )
+	net.Broadcast()
+
+	if self:GetClientBool( "should_parent" ) and IsValid( trace.Entity ) then
 		ent:SetParent( trace.Entity )
 	end
 
@@ -102,11 +104,12 @@ if CLIENT then
 		file.Write( defaultFileName, [[
 <text style="
 --font: Coolvetica;
---size: 5;
+--size: 6;
 --color: rgb( 180, 220, 255 );
 --shadow-color: rgb( 0, 180, 255 );
+--stroke-color: #0000;
 ">
-garry's mod
+garry's mod textscreens revamped
 		]] )
 	end
 
@@ -123,26 +126,28 @@ garry's mod
 		textEdit:Dock( TOP )
 		textEdit:SetTall( 200 )
 		textEdit:SetMultiline( true )
-		local lastSavedTxt = file.Read( defaultFileName, "DATA" ) or [[
-		<text style="
-		--font: Coolvetica;
-		--size: 5;
-		--color: rgb( 180, 220, 255 );
-		--shadow-color: rgb( 0, 180, 255 );
-		">
-		garry's mod
-		]]
+		local lastSavedTxt = file.Read( defaultFileName, "DATA" )
 		textEdit:SetValue( lastSavedTxt )
 		textEdit:SetUpdateOnType( true )
 
 		function textEdit:OnValueChange( text )
 			LocalPlayer().textscreen_revamped.currentTextScreenText = text
+
+			net.Start( "UpdatePlayerCurrentTextscreenText" )
+			net.WritePlayer(  LocalPlayer() )
+			net.WriteString( text )
+			net.SendToServer()
 		end
 
 		function presetPanel:OnSelect( id, name, data )
 			local contents = file.Read( "textscreen_revamped/" .. name .. ".txt", "DATA" )
 			textEdit:SetValue( contents )
 			LocalPlayer().textscreen_revamped.currentTextScreenText = contents
+
+			net.Start( "UpdatePlayerCurrentTextscreenText" )
+			net.WritePlayer(  LocalPlayer() )
+			net.WriteString( contents )
+			net.SendToServer()
 		end
 
 		-- Override this bitch since we're not using cvars
@@ -187,6 +192,12 @@ garry's mod
 
 		panel:AddItem( presetPanel )
 		panel:AddItem( textEdit )
+		panel:CheckBox( "Should Parent?", "textscreen_revamped_should_parent", false )
+
+		net.Start( "UpdatePlayerCurrentTextscreenText" )
+		net.WritePlayer(  LocalPlayer() )
+		net.WriteString( lastSavedTxt )
+		net.SendToServer()
 	end
 
 	hook.Add( "InitPostEntity", "TextscreenRevamped_PlayerInit", function()

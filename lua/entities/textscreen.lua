@@ -17,11 +17,10 @@ else
 	resource.AddSingleFile( "resource/fonts/Spicy Sale.ttf" )
 	resource.AddSingleFile( "resource/fonts/Segment.ttf" )
 	resource.AddSingleFile( "resource/fonts/Coolvetica.ttf" )
-	-- This is used to scale the textscreen physics based on the text length
-	net.Receive( "SetTextscreenText", function()
-		local textscreen = net.ReadEntity()
-		local textW, textH = net.ReadFloat(), net.ReadFloat()
-		local scale = Vector( 0.5, textW, textH )
+
+	function SetTextscreenText( textscreen, width, height )
+		if not IsValid( textscreen ) then return end
+		local scale = Vector( 0.5, width, height )
 		textscreen:PhysicsInitBox( Vector( scale.x * -0.5, scale.y * -0.5, scale.z * -0.5 ), Vector( scale.x * 0.5, scale.y * 0.5, scale.z * 0.5 ) )
 		textscreen:SetCollisionBounds( Vector( scale.x * -0.5, scale.y * -0.5, scale.z * -0.5 ), Vector( scale.x * 0.5, scale.y * 0.5, scale.z * 0.5 ) )
 		textscreen:SetMoveType( MOVETYPE_VPHYSICS )
@@ -35,6 +34,20 @@ else
 		textscreen:SetSolidFlags( 0 )
 		textscreen:AddSolidFlags( FSOLID_CUSTOMRAYTEST )
 		textscreen:AddSolidFlags( FSOLID_CUSTOMBOXTEST )
+	end
+
+	net.Receive( "UpdatePlayerCurrentTextscreenText", function()
+		local ply = net.ReadPlayer()
+		local txt = net.ReadString()
+		net.Start( "UpdatePlayerCurrentTextscreenText" )
+		net.WritePlayer( ply )
+		net.WriteString( txt )
+		net.Broadcast()
+	end )
+
+	-- This is used to scale the textscreen physics based on the text length
+	net.Receive( "SetTextscreenText", function()
+		SetTextscreenText( net.ReadEntity(), net.ReadFloat(), net.ReadFloat() )
 	end )
 end
 
@@ -46,11 +59,13 @@ function ENT:Initialize()
 	end
 
 	if CLIENT then
+		self.originalModelSize = self:OBBMaxs()
 		self.pixelScale = 0.2
 		self.size = Vector( 0, 0, 0 )
-		self.htmlPanel = vgui.Create( "DHTML" )
-		self.htmlPanel:SetSize( self.size[1], self.size[2] )
+		self.htmlPanel = nil--vgui.Create( "DHTML" )
+		--self.htmlPanel:SetSize( self.size[1], self.size[2] )
 		self:DrawShadow( false )
+		self.text = ""
 	end
 end
 
@@ -61,107 +76,7 @@ if CLIENT then
 	end
 
 	function ENT:SetText( text )
-		local modelMaxs = self:OBBMaxs()
-
-		local newHtml = [[
-			<head>
-				<meta name="referrer" content="origin" />
-				<style>
-					@font-face {
-						font-family: 'Spicy Sale'; /* The name you will use in CSS */
-						src: url('asset://garrysmod/resource/fonts/Spicy Sale.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
-					}
-					@font-face {
-						font-family: 'Segment'; /* The name you will use in CSS */
-						src: url('asset://garrysmod/resource/fonts/Segment.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
-					}
-					@font-face {
-						font-family: 'Coolvetica'; /* The name you will use in CSS */
-						src: url('asset://garrysmod/resource/fonts/Coolvetica.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
-					}
-					body {
-						background: transparent;
-						overflow: hidden;
-						overflow-wrap: anywhere;
-						margin: 0;
-						padding: 0;
-						transform: translateZ(0);
-						--font: 'Arial';
-						--size: 15;
-						--font-style: none;
-						--color: rgb(255, 255, 255);
-						--shadow-color: rgba( 0, 0, 0, 0.0 );
-						--shadow-blur: 1;
-						--shadow-x: 0;
-						--shadow-y: 0;
-						--stroke: 1;
-						--stroke-color: rgb( 0, 0, 0 );
-					}
-
-					.container {
-						display: flex;
-						position: relative;
-						width: max-content;
-						height: max-content;
-						padding: 2em;
-						align-items: center;
-						justify-content: center;
-						background: #fff0;
-						max-width: 2000px;
-						max-height: 2000px;
-					}
-					text {
-						display: inline;
-						position: relative;
-						text-align: center;
-						white-space: pre-wrap;
-						color: var(--color);
-						-webkit-text-stroke: calc( var( --stroke ) * 1px + 1px ) var( --stroke-color );
-						font-family: var(--font);
-						font-size: calc( var(--size) * 1em );
-						font-style: var(--font-style);
-						text-shadow: calc( var( --shadow-x ) * 1em ) calc( var( --shadow-y ) * 1em ) calc( var( --shadow-blur ) * 0.1em ) var( --shadow-color );
-					}
-				</style>
-			</head>
-			<body>
-				<div class="container" id="main">
-		]]
-
-		text = string.Replace( text, ">\n", ">" ) -- Remove line breaks right after tags
-		text = string.TrimRight( text )
-
-		newHtml = newHtml .. text
-		newHtml = newHtml .. "</div>"
-		newHtml = newHtml .. "</body>"
-
-		self.htmlPanel:SetHTML( newHtml )
-
-		--local scale = Vector( 0.5, self.size[1] * self.pixelScale, self.size[2] * self.pixelScale )
-
-		self.htmlPanel:AddFunction( "textscreen", "resizeTextscreen", function( w, h )
-			print( w, h )
-			local scale = Vector( 0.5, w * self.pixelScale, h * self.pixelScale )
-			local sclMat = Matrix()
-			sclMat:SetScale( scale / ( modelMaxs[1] - 0.25 ) / 2 )
-			self:EnableMatrix( "RenderMultiply", sclMat )
-			self:SetRenderBounds( -scale, scale )
-			self:SetSize( Vector( w, h, 0 ) )
-
-			if LocalPlayer() ~= self:GetNW2Entity( "owner" ) then return end
-
-			net.Start( "SetTextscreenText" )
-			net.WriteEntity( self )
-			net.WriteFloat( scale[2] )
-			net.WriteFloat( scale[3] )
-			net.SendToServer()
-		end )
-
-		self.htmlPanel:QueueJavascript( [[
-			const elem = document.getElementById( "main" );
-			var rect = elem.getBoundingClientRect();
-			textscreen.resizeTextscreen( rect.width, rect.height );
-		]] );
+		self.text = text
 	end
 
 	function ENT:Think()
@@ -176,11 +91,127 @@ if CLIENT then
 	end
 
 	function ENT:OnRemove()
+		if self.htmlPanel == nil then return end
 		self.htmlPanel:Remove()
 	end
 
 	function ENT:Draw()
-		--self:DrawModel()
+		local renderDist = TEXTSCREEN_REVAMPED.RenderDistanceCVar:GetFloat() ^ 2
+		local eyeDist = EyePos():DistToSqr( self:GetPos() )
+
+		if eyeDist > renderDist then
+			return
+		end
+
+		if self.htmlPanel == nil and self.text ~= "" then
+			self.htmlPanel = vgui.Create( "DHTML" )
+			self.htmlPanel:SetSize( 0, 0 )
+			local newHtml = [[
+				<head>
+					<meta name="referrer" content="origin" />
+					<style>
+						@font-face {
+							font-family: 'Spicy Sale'; /* The name you will use in CSS */
+							src: url('asset://garrysmod/resource/fonts/Spicy Sale.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
+						}
+						@font-face {
+							font-family: 'Segment'; /* The name you will use in CSS */
+							src: url('asset://garrysmod/resource/fonts/Segment.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
+						}
+						@font-face {
+							font-family: 'Coolvetica'; /* The name you will use in CSS */
+							src: url('asset://garrysmod/resource/fonts/Coolvetica.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
+						}
+						body {
+							background: transparent;
+							overflow: hidden;
+							overflow-wrap: anywhere;
+							margin: 0;
+							padding: 0;
+							transform: translateZ(0);
+							--font: 'Arial';
+							--size: 15;
+							--font-style: none;
+							--color: rgb(255, 255, 255);
+							--shadow-color: rgba( 0, 0, 0, 0.0 );
+							--shadow-blur: 1;
+							--shadow-x: 0;
+							--shadow-y: 0;
+							--stroke: 1;
+							--stroke-color: rgb( 0, 0, 0 );
+						}
+
+						.container {
+							display: flex;
+							position: relative;
+							width: max-content;
+							height: max-content;
+							padding: 2em;
+							align-items: center;
+							justify-content: center;
+							background: #fff0;
+							max-width: 1024px;
+							max-height: 1024px;
+						}
+						text {
+							display: inline;
+							position: relative;
+							text-align: center;
+							white-space: pre-wrap;
+							color: var(--color);
+							-webkit-text-stroke: calc( var( --stroke ) * 1px + 1px ) var( --stroke-color );
+							font-family: var(--font);
+							font-size: calc( var(--size) * 1em );
+							font-style: var(--font-style);
+							text-shadow: calc( var( --shadow-x ) * 1em ) calc( var( --shadow-y ) * 1em ) calc( var( --shadow-blur ) * 0.1em ) var( --shadow-color );
+						}
+					</style>
+				</head>
+				<body>
+					<div class="container" id="main">
+			]]
+
+			local txt = self.text
+
+			txt = string.Replace( txt, ">\n", ">" ) -- Remove line breaks right after tags
+			txt = string.TrimRight( txt )
+
+			newHtml = newHtml .. txt
+			newHtml = newHtml .. "</div>"
+			newHtml = newHtml .. "</body>"
+
+			self.htmlPanel:SetHTML( newHtml )
+
+			self.htmlPanel:AddFunction( "textscreen", "resizeTextscreen", function( w, h )
+				--self.pixelScale = 0.1 * w * h / 1024^2
+				--w = w * self.pixelScale
+				--h = h * self.pixelScale
+
+				local scale = Vector( 0.5, w * self.pixelScale, h * self.pixelScale )
+				local sclMat = Matrix()
+				sclMat:SetScale( scale / ( self.originalModelSize[1] - 0.25 ) / 2 )
+				self:EnableMatrix( "RenderMultiply", sclMat )
+				self:SetRenderBounds( -scale, scale )
+				self:SetSize( Vector( w, h, 0 ) )
+
+				if LocalPlayer() ~= self:GetNW2Entity( "owner" ) then return end
+
+				net.Start( "SetTextscreenText" )
+				net.WriteEntity( self )
+				net.WriteFloat( scale[2] )
+				net.WriteFloat( scale[3] )
+				net.SendToServer()
+			end )
+
+			self.htmlPanel:QueueJavascript( [[
+				const elem = document.getElementById( "main" );
+				var rect = elem.getBoundingClientRect();
+				textscreen.resizeTextscreen( rect.width, rect.height );
+			]] )
+		end
+
+		if self.size[1] <= 0 or self.size[2] <= 0 then return end
+
 		local mat = Matrix()
 		mat:Translate( self:WorldSpaceCenter() )
 		mat:Rotate( self:GetAngles() )
