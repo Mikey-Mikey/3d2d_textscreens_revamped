@@ -13,20 +13,6 @@ AddCSLuaFile( "includes/3d2dvgui.lua" )
 
 if CLIENT then
 	include( "includes/3d2dvgui.lua" )
-	surface.CreateFont( "NewFont", {
-		font = "Coolvetica",
-		size = 256,
-		weight = 500,
-		blursize = 0,
-		scanlines = 0,
-		antialias = true,
-		underline = false,
-		italic = false,
-		strikeout = false,
-		symbol = false,
-		rotary = false,
-		outline = false
-	} )
 else
 	resource.AddSingleFile( "resource/fonts/Spicy Sale.ttf" )
 	resource.AddSingleFile( "resource/fonts/Segment.ttf" )
@@ -114,8 +100,9 @@ if CLIENT then
 
 					.container {
 						display: flex;
-						width: fit-content;
-						height: fit-content;
+						position: relative;
+						width: max-content;
+						height: max-content;
 						padding: 2em;
 						align-items: center;
 						justify-content: center;
@@ -127,7 +114,6 @@ if CLIENT then
 						display: inline;
 						position: relative;
 						text-align: center;
-						
 						white-space: pre-wrap;
 						color: var(--color);
 						-webkit-text-stroke: calc( var( --stroke ) * 1px + 1px ) var( --stroke-color );
@@ -154,13 +140,16 @@ if CLIENT then
 		--local scale = Vector( 0.5, self.size[1] * self.pixelScale, self.size[2] * self.pixelScale )
 
 		self.htmlPanel:AddFunction( "textscreen", "resizeTextscreen", function( w, h )
+			print( w, h )
 			local scale = Vector( 0.5, w * self.pixelScale, h * self.pixelScale )
 			local sclMat = Matrix()
 			sclMat:SetScale( scale / ( modelMaxs[1] - 0.25 ) / 2 )
 			self:EnableMatrix( "RenderMultiply", sclMat )
 			self:SetRenderBounds( -scale, scale )
-			self.size = Vector( w, h, 0 )
+			self:SetSize( Vector( w, h, 0 ) )
+
 			if LocalPlayer() ~= self:GetNW2Entity( "owner" ) then return end
+
 			net.Start( "SetTextscreenText" )
 			net.WriteEntity( self )
 			net.WriteFloat( scale[2] )
