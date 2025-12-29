@@ -277,8 +277,8 @@ if CLIENT then
 				
 				local textDataStr = entry.text
 				textDataStr = string.Replace( textDataStr, "\n", " \\A " )
-				textDataStr = string.Replace( textDataStr, "'", "\\0027" )
-				textDataStr = string.Replace( textDataStr, '"', "\\0022" )
+				textDataStr = string.Replace( textDataStr, "'", "\\'" )
+				textDataStr = string.Replace( textDataStr, '"', '&quot;' )
 
 				ply.textscreen_revamped.currentTextScreenText = ply.textscreen_revamped.currentTextScreenText .. 
 				string.format( [[
@@ -307,8 +307,6 @@ if CLIENT then
 				entry.effectData.shadowOffset[2],
 				textDataStr,
 				entry.text ) .. "\n"
-
-				print( string.Replace(entry.text, "\n", " \\A ") )
 			end
 
 			net.Start( "UpdatePlayerCurrentTextscreenText" )

@@ -270,7 +270,6 @@ if CLIENT then
 						text-shadow:
 							calc( var( --shadow-x ) * 1em ) calc( var( --shadow-y ) * 1em ) calc( var( --shadow-blur ) * 0.1em ) var( --shadow-color ),
 							calc( var( --shadow-x ) * 1em ) calc( var( --shadow-y ) * 1em ) calc( var( --shadow-blur ) * 0.1em ) var( --shadow-color );
-						--text-data: '';
 
 					}
 					text::before {
