@@ -20,13 +20,14 @@ else
 
 	function SetTextscreenText( textscreen, width, height )
 		if not IsValid( textscreen ) then return end
+
 		local scale = Vector( 0.5, width, height )
 		textscreen:PhysicsInitBox( Vector( scale.x * -0.5, scale.y * -0.5, scale.z * -0.5 ), Vector( scale.x * 0.5, scale.y * 0.5, scale.z * 0.5 ) )
 		textscreen:SetCollisionBounds( Vector( scale.x * -0.5, scale.y * -0.5, scale.z * -0.5 ), Vector( scale.x * 0.5, scale.y * 0.5, scale.z * 0.5 ) )
 		textscreen:SetMoveType( MOVETYPE_VPHYSICS )
 		textscreen:SetSolid( SOLID_VPHYSICS )
 		textscreen:EnableCustomCollisions( true )
-		--textscreen:SetCustomCollisionCheck( true )
+
 		textscreen:SetCollisionGroup( COLLISION_GROUP_WORLD )
 		local mass = 50
 		textscreen:GetPhysicsObject():SetMass( mass )
@@ -35,6 +36,8 @@ else
 		textscreen:AddSolidFlags( FSOLID_CUSTOMBOXTEST )
 
 		textscreen:CollisionRulesChanged()
+
+		textscreen.PhysCollide = CreatePhysCollideBox( Vector( scale.x * -0.5, scale.y * -0.5, scale.z * -0.5 ), Vector( scale.x * 0.5, scale.y * 0.5, scale.z * 0.5 ) )
 	end
 
 	net.Receive( "UpdatePlayerCurrentTextscreenText", function()
@@ -78,15 +81,38 @@ function ENT:Initialize()
 	self:DrawShadow( false )
 end
 
-if CLIENT then
+function ENT:TestCollision( startpos, delta, isbox, extents )
+    if not IsValid( self.PhysCollide ) then
+        return
+    end
 
+    -- TraceBox expects the trace to begin at the center of the box, but TestCollision is bad
+    local max = extents
+    local min = -extents
+    max.z = max.z - min.z
+    min.z = 0
+
+    local hit, norm, frac = self.PhysCollide:TraceBox( self:GetPos(), self:GetAngles(), startpos, startpos + delta, min, max )
+
+    if not hit then
+        return
+    end
+
+    return { 
+        HitPos = hit,
+        Normal  = norm,
+        Fraction = frac,
+    }
+end
+
+if CLIENT then
 	function ENT:SetSize( size )
 		self.size = size
 		self.htmlPanel:SetSize( self.size[1], self.size[2] )
 	end
 
 	function ENT:SetText( text )
-		self:SetNWString( "Text", text )
+		self.text = text
 	end
 
 	function ENT:Think()
@@ -156,9 +182,8 @@ if CLIENT then
 						overflow-wrap: anywhere;
 						margin: 0;
 						padding: 0;
-						transform: translateZ(0);
 						--font: 'Arial';
-						--size: 15;
+						--size: 6;
 						--font-style: none;
 						--font-weight: initial;
 						--color: rgb(255, 255, 255);
@@ -167,13 +192,15 @@ if CLIENT then
 						--shadow-x: 0;
 						--shadow-y: 0;
 						--stroke: 1;
-						--stroke-color: rgb( 0, 0, 0 );
-						paint-order: stroke fill;
+						--stroke-color: rgba( 0, 0, 0, 1 );
 					}
 
 					.container {
 						display: flex;
+						flex-direction: column;
 						position: relative;
+						overflow: hidden;
+						overflow-wrap: anywhere;
 						width: max-content;
 						height: max-content;
 						padding: 2em;
@@ -184,13 +211,12 @@ if CLIENT then
 						max-height: 1024px;
 					}
 					text {
-						display: inline;
+						display: block;
 						position: relative;
 						text-align: center;
 						white-space: pre-wrap;
 						color: var(--color);
-						-webkit-text-stroke: calc( var( --stroke ) * 1px + 2px );
-						-webkit-text-stroke-color: var( --stroke-color );
+						-webkit-text-stroke: calc( var( --stroke ) * 1px + 2px ) var( --stroke-color );
 						font-family: var(--font);
 						font-size: calc( var(--size) * 1em );
 						font-style: var(--font-style);
@@ -198,14 +224,25 @@ if CLIENT then
 						text-shadow: calc( var( --shadow-x ) * 1em ) calc( var( --shadow-y ) * 1em ) calc( var( --shadow-blur ) * 0.1em ) var( --shadow-color );
 					}
 				</style>
+				<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.7/purify.min.js"></script>
 			</head>
 			<body>
 				<div class="container" id="main">
 		]]
-		local txt = self:GetNWString( "Text" )
+		local txt = self.text
 
 		txt = string.Replace( txt, ">\n", ">" ) -- Remove line breaks right after tags
 		txt = string.TrimRight( txt )
+
+		self.htmlPanel:AddFunction( "textscreen", "sanitizeText", function( sanitizedText )
+			txt = sanitizedText
+		end )
+
+		-- Sanitize text
+		self.htmlPanel:QueueJavascript( string.format( [[
+			const txt = DOMPurify.sanitize( `%s`, { USE_PROFILES: {  } });
+			textscreen.sanitizeText( txt );
+		]], txt ) )
 
 		newHtml = newHtml .. txt
 		newHtml = newHtml .. "</div>"
