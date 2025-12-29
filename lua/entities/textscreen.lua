@@ -14,9 +14,12 @@ AddCSLuaFile( "includes/3d2dvgui.lua" )
 if CLIENT then
 	include( "includes/3d2dvgui.lua" )
 else
-	resource.AddSingleFile( "resource/fonts/Spicy Sale.ttf" )
-	resource.AddSingleFile( "resource/fonts/Segment.ttf" )
+	util.AddNetworkString( "RetrieveTextscreenText" )
 	resource.AddSingleFile( "resource/fonts/Coolvetica.ttf" )
+	resource.AddSingleFile( "resource/fonts/Oxanium.ttf" )
+	resource.AddSingleFile( "resource/fonts/Roboto.ttf" )
+	resource.AddSingleFile( "resource/fonts/Segment.ttf" )
+	resource.AddSingleFile( "resource/fonts/Spicy Sale.ttf" )
 
 	function SetTextscreenText( textscreen, width, height )
 		if not IsValid( textscreen ) then return end
@@ -36,6 +39,10 @@ else
 		textscreen:AddSolidFlags( FSOLID_CUSTOMBOXTEST )
 
 		textscreen:CollisionRulesChanged()
+
+		if IsValid( textscreen:GetParent() ) then
+			textscreen:SetNotSolid( true )
+		end
 
 		textscreen.PhysCollide = CreatePhysCollideBox( Vector( scale.x * -0.5, scale.y * -0.5, scale.z * -0.5 ), Vector( scale.x * 0.5, scale.y * 0.5, scale.z * 0.5 ) )
 	end
@@ -57,7 +64,19 @@ else
 		local h = net.ReadFloat()
 		local txt = net.ReadString()
 
+		textscreen.text = txt
+
 		SetTextscreenText( textscreen, w, h )
+	end )
+
+	net.Receive( "RetrieveTextscreenText", function()
+		local ply = net.ReadPlayer()
+		local textscreen = net.ReadEntity()
+		local txt = textscreen.text
+		net.Start( "RetrieveTextscreenText" )
+		net.WriteEntity( textscreen )
+		net.WriteString( txt )
+		net.Send( ply )
 	end )
 end
 
@@ -122,6 +141,12 @@ if CLIENT then
 		if CLIENT then
 			local physobj = self:GetPhysicsObject()
 
+			if not IsValid( self.PhysCollide ) then
+				local scale = Vector( 0.5, self.size[1] * self.pixelScale, self.size[2] * self.pixelScale )
+
+				self.PhysCollide = CreatePhysCollideBox( Vector( scale.x * -0.5, scale.y * -0.5, scale.z * -0.5 ), Vector( scale.x * 0.5, scale.y * 0.5, scale.z * 0.5 ) )
+			end
+
 			if IsValid( physobj ) then
 				physobj:SetPos( self:GetPos() )
 				physobj:SetAngles( self:GetAngles() )
@@ -153,6 +178,7 @@ if CLIENT then
 	function ENT:OnRemove()
 		if self.htmlPanel == nil then return end
 		self.htmlPanel:Remove()
+		self.PhysCollide:Destroy()
 	end
 
 	function ENT:UpdateHTML()
@@ -168,16 +194,24 @@ if CLIENT then
 				<meta name="referrer" content="origin" />
 				<style>
 					@font-face {
-						font-family: 'Spicy Sale'; /* The name you will use in CSS */
-						src: url('asset://garrysmod/resource/fonts/Spicy Sale.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
+						font-family: 'Coolvetica'; /* The name you will use in CSS */
+						src: url('asset://garrysmod/resource/fonts/Coolvetica.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
+					}
+					@font-face {
+						font-family: 'Oxanium'; /* The name you will use in CSS */
+						src: url('asset://garrysmod/resource/fonts/Oxanium.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
+					}
+					@font-face {
+						font-family: 'Roboto'; /* The name you will use in CSS */
+						src: url('asset://garrysmod/resource/fonts/Roboto.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
 					}
 					@font-face {
 						font-family: 'Segment'; /* The name you will use in CSS */
 						src: url('asset://garrysmod/resource/fonts/Segment.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
 					}
 					@font-face {
-						font-family: 'Coolvetica'; /* The name you will use in CSS */
-						src: url('asset://garrysmod/resource/fonts/Coolvetica.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
+						font-family: 'Spicy Sale'; /* The name you will use in CSS */
+						src: url('asset://garrysmod/resource/fonts/Spicy Sale.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
 					}
 					body {
 						background: transparent;
@@ -185,10 +219,11 @@ if CLIENT then
 						overflow-wrap: anywhere;
 						margin: 0;
 						padding: 0;
+						paint-order: stroke fill;
 						--font: 'Arial';
 						--size: 6;
+						--weight: 400;
 						--font-style: none;
-						--font-weight: initial;
 						--color: rgb(255, 255, 255);
 						--shadow-color: rgba( 0, 0, 0, 0.0 );
 						--shadow-blur: 1;
@@ -196,17 +231,19 @@ if CLIENT then
 						--shadow-y: 0;
 						--stroke: 1;
 						--stroke-color: rgba( 0, 0, 0, 1 );
+						--text-data: "Data";
 					}
 
 					.container {
 						display: flex;
 						flex-direction: column;
 						position: relative;
+						padding: 0;
+						margin: 0;
 						overflow: hidden;
 						overflow-wrap: anywhere;
 						width: max-content;
 						height: max-content;
-						padding: 2em;
 						align-items: center;
 						justify-content: center;
 						background: #fff0;
@@ -219,12 +256,31 @@ if CLIENT then
 						text-align: center;
 						white-space: pre-wrap;
 						color: var(--color);
-						-webkit-text-stroke: calc( var( --stroke ) * ( var( --size ) / 6 ) * 1px + 2px ) var( --stroke-color );
+						margin: 
+							calc( max( 0.01, max( 0, var( --shadow-y ) * -1 ) ) * 1em + var(--shadow-blur) * 0.1em )
+							calc( max( 0.01, max( 0, var( --shadow-x ) ) ) * 1em + var(--shadow-blur) * 0.1em )
+							calc( max( 0.01, max( 0, var( --shadow-y ) ) ) * 1em + var(--shadow-blur) * 0.1em )
+							calc( max( 0.01, max( 0, var( --shadow-x ) * -1 ) ) * 1em + var(--shadow-blur) * 0.1em );
+						padding: 0;
 						font-family: var(--font);
 						font-size: calc( var(--size) * 1em );
 						font-style: var(--font-style);
-						font-weight: var(--font-weight);
-						text-shadow: calc( var( --shadow-x ) * ( var( --size ) / 6 ) * 1em ) calc( var( --shadow-y ) * ( var( --size ) / 6 ) * 1em ) calc( var( --shadow-blur ) * ( var( --size ) / 6 ) * 0.1em ) var( --shadow-color );
+						font-variation-settings: "wght" var( --weight );
+						-webkit-text-stroke: calc( var( --stroke ) * ( var( --size ) / 6 ) * 2px + 4px * var( --size ) / 6 ) var( --stroke-color );
+						text-shadow:
+							calc( var( --shadow-x ) * 1em ) calc( var( --shadow-y ) * 1em ) calc( var( --shadow-blur ) * 0.1em ) var( --shadow-color ),
+							calc( var( --shadow-x ) * 1em ) calc( var( --shadow-y ) * 1em ) calc( var( --shadow-blur ) * 0.1em ) var( --shadow-color );
+						--text-data: '';
+
+					}
+					text::before {
+						white-space: pre-wrap;
+						display: block;
+						content: var(--text-data);
+						position: absolute;
+						left: 0;
+						-webkit-text-stroke-color: #0000;
+						font-size: 1em;
 					}
 				</style>
 				<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.7/purify.min.js"></script>
@@ -271,7 +327,7 @@ if CLIENT then
 			net.WriteEntity( self )
 			net.WriteFloat( scale[2] )
 			net.WriteFloat( scale[3] )
-			net.WriteString( txt )
+			net.WriteString( self.text )
 			net.SendToServer()
 		end )
 

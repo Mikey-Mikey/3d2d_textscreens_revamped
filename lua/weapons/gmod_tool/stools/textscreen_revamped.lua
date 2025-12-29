@@ -29,19 +29,14 @@ if CLIENT then
 	net.Receive( "SetTextscreenText", function()
 		local ply = net.ReadEntity()
 		local ent = net.ReadEntity()
-		local updated = net.ReadBool()
-		local scale = Vector( 0.5, ent.size[1] * ent.pixelScale, ent.size[2] * ent.pixelScale )
+		timer.Create( "WaitForTextscreen" .. tostring( ent ), 0.01, 0, function()
+			if not IsValid( ent ) then return end
 
-		-- Since traces are going through the entity, I'm playing a fake tool sound just so the player knows they're doing something.
-		if LocalPlayer() == ply and updated then
-			surface.PlaySound( "Airboat.FireGunRevDown" )
-		end
+			ent:SetText( ply.textscreen_revamped.currentTextScreenText )
 
-		ent.PhysCollide = CreatePhysCollideBox( Vector( scale.x * -0.5, scale.y * -0.5, scale.z * -0.5 ), Vector( scale.x * 0.5, scale.y * 0.5, scale.z * 0.5 ) )
-
-		ent:SetText( ply.textscreen_revamped.currentTextScreenText )
-		print( ent.text )
-		ent:UpdateHTML()
+			ent:UpdateHTML()
+			timer.Remove( "WaitForTextscreen" .. tostring( ent ) )
+		end )
 	end )
 
 	net.Receive( "UpdatePlayerCurrentTextscreenText", function()
@@ -50,6 +45,14 @@ if CLIENT then
 
 		ply.textscreen_revamped = ply.textscreen_revamped or {}
 		ply.textscreen_revamped.currentTextScreenText = txt
+	end )
+
+	net.Receive( "RetrieveTextscreenText", function()
+		local ent = net.ReadEntity()
+		local txt = net.ReadString()
+		print( txt )
+		ent:SetText( txt )
+		ent:UpdateHTML()
 	end )
 end
 
@@ -65,7 +68,6 @@ function TOOL:LeftClick( trace )
 	ent:SetPos( trace.HitPos + trace.HitNormal * 1 )
 	ent:SetAngles( trace.HitNormal:Angle() )
 	ent:Spawn()
-	ent:Activate()
 	ent:SetNWEntity( "owner", self:GetOwner() )
 
 	if CPPI then
@@ -78,7 +80,6 @@ function TOOL:LeftClick( trace )
 		net.Start( "SetTextscreenText" )
 		net.WriteEntity( self:GetOwner() )
 		net.WriteEntity( ent )
-		net.WriteBool( false )
 		net.Broadcast()
 	end )
 
@@ -96,7 +97,6 @@ end
 
 function TOOL:RightClick( trace )
 	if CLIENT then
-		PrintTable( trace )
 		return IsValid( trace.Entity ) and trace.Entity:GetClass() == "textscreen"
 	end
 	local ent = trace.Entity
@@ -110,7 +110,6 @@ function TOOL:RightClick( trace )
 		net.Start( "SetTextscreenText" )
 		net.WriteEntity( self:GetOwner() )
 		net.WriteEntity( ent )
-		net.WriteBool( true )
 		net.Broadcast()
 
 		return true
@@ -141,7 +140,7 @@ if CLIENT then
 		file.Write( defaultFileName, util.TableToJSON( {
 			entries = {
 				{
-					text = "garry's mod textscreens revamped",
+					text = "garry's mod",
 					effectData = {
 						font = "Coolvetica",
 						size = 6,
@@ -165,7 +164,33 @@ if CLIENT then
 						},
 						stroke = 1
 					}
-				}
+				},
+				{
+					text = "textscreens revamped",
+					effectData = {
+						font = "Coolvetica",
+						size = 6,
+						color = {
+							r = 255,
+							g = 192,
+							b = 255,
+							a = 255
+						},
+						shadowColor = {
+							r = 255,
+							g = 0,
+							b = 255,
+							a = 255
+						},
+						strokeColor = {
+							r = 0,
+							g = 0,
+							b = 0,
+							a = 0
+						},
+						stroke = 1
+					}
+				},
 			}
 		}, true ) )
 	end
@@ -175,12 +200,44 @@ if CLIENT then
 	end
 
 	function TOOL.BuildCPanel( panel )
-		local presetPanel = vgui.Create( "ControlPresets" )
+		local presetPanel = vgui.Create( "ControlPresets", panel )
 		local files, _ = file.Find( "textscreen_revamped/*.txt", "DATA" )
 
 		for _, fileName in pairs( files ) do
 			fileName = string.sub( fileName, 1, -5 ) -- Remove .txt from filename
 			presetPanel:AddOption( fileName, nil )
+		end
+		
+		local presetLabel = presetPanel:GetChildren()[1]
+		presetLabel:SetText( "default" )
+
+		local presetEditorIcon = presetPanel:GetChildren()[2]
+		presetEditorIcon:Remove()
+
+		local presetRemoveIcon = vgui.Create( "DButton", presetPanel )
+		presetRemoveIcon:SetText( "" )
+		presetRemoveIcon:SetIcon( "icon16/delete.png" )
+		presetRemoveIcon:Dock( RIGHT )
+		presetRemoveIcon:SetTall( 20 )
+		presetRemoveIcon:SetWide( 20 )
+		presetRemoveIcon:SetZPos( -1 )
+
+		function presetRemoveIcon:Paint() end
+
+		function presetRemoveIcon:DoClick()
+			if presetLabel:GetText() ~= "default" then
+				file.Delete( "textscreen_revamped/" .. presetLabel:GetText() .. ".txt" )
+				
+				presetPanel:Clear()
+				local files, _ = file.Find( "textscreen_revamped/*.txt", "DATA" )
+
+				for _, fileName in pairs( files ) do
+					fileName = string.sub( fileName, 1, -5 ) -- Remove .txt from filename
+					presetPanel:AddOption( fileName, nil )
+				end
+				presetLabel:SetText( "default" )
+				presetPanel:OnSelect( 1, "default", nil )
+			end
 		end
 
 		-- Advanced html shiz
@@ -204,8 +261,9 @@ if CLIENT then
 		]]
 
 		local textSheet = vgui.Create( "DPropertySheet", panel )
-		textSheet:Dock( TOP )
-		textSheet:SetTall( 200 )
+		
+
+		textSheet:SetTall( 700 )
 
 		textSheet.entries = {}
 
@@ -216,24 +274,41 @@ if CLIENT then
 			ply.textscreen_revamped.currentTextScreenText = ""
 			
 			for i, entry in ipairs( textSheet.entries ) do
+				
+				local textDataStr = entry.text
+				textDataStr = string.Replace( textDataStr, "\n", " \\A " )
+				textDataStr = string.Replace( textDataStr, "'", "\\0027" )
+				textDataStr = string.Replace( textDataStr, '"', "\\0022" )
+
 				ply.textscreen_revamped.currentTextScreenText = ply.textscreen_revamped.currentTextScreenText .. 
 				string.format( [[
 				<text style="
 				--font: %s;
 				--size: %s;
+				--weight: %s;
 				--color: %s;
-				--shadow-color: %s;
-				--stroke-color: %s;
 				--stroke: %s;
+				--stroke-color: %s;
+				--shadow-blur: %s;
+				--shadow-color: %s;
+				--shadow-x: %s;
+				--shadow-y: %s;
+				--text-data: '%s';
 				">%s</text>]], 
 				entry.effectData.font, 
 				entry.effectData.size, 
+				entry.effectData.weight, 
 				entry.effectData.color:ToHex(),
-				entry.effectData.shadowColor:ToHex(),
-				entry.effectData.strokeColor:ToHex(),
 				entry.effectData.stroke,
+				entry.effectData.strokeColor:ToHex(),
+				entry.effectData.shadowBlur,
+				entry.effectData.shadowColor:ToHex(),
+				entry.effectData.shadowOffset[1],
+				entry.effectData.shadowOffset[2],
+				textDataStr,
 				entry.text ) .. "\n"
-				
+
+				print( string.Replace(entry.text, "\n", " \\A ") )
 			end
 
 			net.Start( "UpdatePlayerCurrentTextscreenText" )
@@ -248,14 +323,19 @@ if CLIENT then
 			effectData = {
 				font = effectData.font or "Coolvetica",
 				size = effectData.size or 6,
+				weight = effectData.weight or 400,
 				color = TableToColor( effectData.color ) or Color( 255, 255, 255, 255 ),
-				shadowColor = TableToColor( effectData.shadowColor ) or Color( 0, 0, 0, 255 ),
-				strokeColor = TableToColor( effectData.strokeColor ) or Color( 0, 0, 0, 255 ),
 				stroke = effectData.stroke or 1,
+				strokeColor = TableToColor( effectData.strokeColor ) or Color( 0, 0, 0, 255 ),
+				shadowBlur = effectData.shadowBlur or 1,
+				shadowColor = TableToColor( effectData.shadowColor ) or Color( 0, 0, 0, 255 ),
+				shadowOffset = effectData.shadowOffset or { 0, 0 },
 			}
 
-			local panel = vgui.Create( "DPanel", textSheet )
-			panel:DockMargin( 5, 0, 5, 5 )
+			local lineId = #textSheet.entries + 1
+
+			local panel = vgui.Create( "DScrollPanel", textSheet )
+			panel:DockMargin( 5, 5, 5, 5 )
 			panel:Dock( FILL )
 			panel:SetPaintBackgroundEnabled( true )
 
@@ -263,15 +343,20 @@ if CLIENT then
 				panel:SetBGColor( 120, 120, 120, 255 )
 			end
 
+			local buttonPanel = vgui.Create( "DPanel", panel )
+			buttonPanel:DockMargin( 5, 5, 5, 0 )
+			buttonPanel:Dock( TOP )
+			buttonPanel:SetTall( 20 )
+			function buttonPanel:Paint() end
+
 			-- Add a button to add a new text line
-			local addLineButton = vgui.Create( "DButton", panel )
+			local addLineButton = vgui.Create( "DButton", buttonPanel )
 			addLineButton:SetIcon( "icon16/add.png" )
 			addLineButton:SetText( "" )
 			addLineButton:Dock( RIGHT )
 			addLineButton:SetWidth( 20 )
 			addLineButton:SetHeight( 20 )
-			addLineButton:DockMargin( 0, 0, 5, 140 )
-			addLineButton:DockPadding( 0, 0, 0, 0 )
+			--addLineButton:DockPadding( 0, 0, 0, 0 )
 
 			addLineButton.Paint = function() end
 
@@ -279,14 +364,13 @@ if CLIENT then
 				addTextLine()
 			end
 
-			local removeLineButton = vgui.Create( "DButton", panel )
+			local removeLineButton = vgui.Create( "DButton", buttonPanel )
 			removeLineButton:SetIcon( "icon16/delete.png" )
 			removeLineButton:SetText( "" )
 			removeLineButton:Dock( RIGHT )
 			removeLineButton:SetWidth( 20 )
 			removeLineButton:SetHeight( 20 )
-			removeLineButton:DockMargin( 0, 0, 0, 140 )
-			removeLineButton:DockPadding( 0, 0, 0, 0 )
+			--removeLineButton:DockPadding( 0, 0, 0, 0 )
 
 			removeLineButton.Paint = function() end
 
@@ -294,34 +378,14 @@ if CLIENT then
 				local tabs = textSheet:GetItems()
 				if #tabs == 1 then return end
 				textSheet:CloseTab( tabs[#tabs].Tab, true )
+				table.remove( textSheet.entries, #textSheet.entries )
+				updateCurrentText()
 			end
-
-			-- Text box
-			local textEntry = vgui.Create( "DTextEntry", panel )
-			textEntry:Dock( TOP )
-			textEntry:SetMultiline( true )
-			textEntry:SetUpdateOnType( true )
-			textEntry:DockPadding( 0, 0, 0, 0 )
-			textEntry:SetHeight( 50 )
-			textEntry:SetValue( text )
-			textEntry.id = #textSheet.entries + 1
-
-			textSheet.entries[textEntry.id] = {
-				text = text,
-				effectData = effectData
-			}
-
-			--- Effect controls
 
 			-- font dropdown
 			local fontControl = vgui.Create( "DComboBox", panel )
-			fontControl:SetPos( 50, 55 )
-			fontControl:SetSize( 200, 20 )
-
-			fontControl.label = vgui.Create( "DLabel", panel )
-			fontControl.label:SetPos( 5, 55 )
-			fontControl.label:SetSize( 200, 20 )
-			fontControl.label:SetText( "Font" )
+			fontControl:DockMargin( 5, 5, 5, 5 )
+			fontControl:Dock( TOP )
 
 			for _, font in pairs( TEXTSCREEN_REVAMPED.FONTS ) do
 				fontControl:AddChoice( font )
@@ -330,9 +394,27 @@ if CLIENT then
 			fontControl:SetValue( effectData.font )
 
 			function fontControl:OnSelect( index, value, data )
-				textSheet.entries[textEntry.id].effectData.font = value
+				textSheet.entries[lineId].effectData.font = value
 				updateCurrentText()
 			end
+
+			local orderIndex = 0
+
+			-- Text box
+			local textEntry = vgui.Create( "DTextEntry", panel )
+			textEntry:SetMultiline( true )
+			textEntry:SetUpdateOnType( true )
+			textEntry:DockMargin( 5, 5, 5, 5 )
+			textEntry:SetHeight( 50 )
+			textEntry:SetValue( text )
+			textEntry:Dock( TOP )
+			textEntry:SetZPos( orderIndex )
+			orderIndex = orderIndex + 1
+
+			textSheet.entries[lineId] = {
+				text = text,
+				effectData = effectData
+			}
 
 			local sizeControl = vgui.Create( "DNumSlider", panel )
 			sizeControl:SetTall( 20 )
@@ -340,16 +422,161 @@ if CLIENT then
 			sizeControl:SetMin( 1 )
 			sizeControl:SetMax( 12 )
 			sizeControl:SetValue( effectData.size )
-			sizeControl:SetSize( 300, 25 )
-			sizeControl:SetPos( 5, 80 )
+			sizeControl:DockMargin( 5, 5, 5, 5 )
+			sizeControl:Dock( TOP )
+			sizeControl:SetZPos( orderIndex )
+			orderIndex = orderIndex + 1
 
 			function sizeControl:OnValueChanged( value )
-				textSheet.entries[textEntry.id].effectData.size = value
+				textSheet.entries[lineId].effectData.size = value
 				updateCurrentText()
 			end
 
+			local weightControl = vgui.Create( "DNumSlider", panel )
+			weightControl:SetTall( 20 )
+			weightControl:SetText( "Weight" )
+			weightControl:SetMin( 200 )
+			weightControl:SetMax( 800 )
+			weightControl:SetDecimals( 0 )
+			weightControl:SetValue( effectData.weight )
+			weightControl:DockMargin( 5, 5, 5, 5 )
+			weightControl:Dock( TOP )
+			weightControl:SetZPos( orderIndex )
+			orderIndex = orderIndex + 1
+
+			function weightControl:OnValueChanged( value )
+				textSheet.entries[lineId].effectData.weight = value
+				updateCurrentText()
+			end
+
+			local colorControl = vgui.Create( "DColorMixer", panel )
+			colorControl:SetSize( 200, 160 )
+			colorControl:SetColor( effectData.color )
+			colorControl:DockMargin( 5, 0, 5, 5 )
+			colorControl:Dock( TOP )
+			colorControl:SetZPos( orderIndex )
+			orderIndex = orderIndex + 1
+
+			function colorControl:ValueChanged( color )
+				textSheet.entries[lineId].effectData.color = TableToColor( color )
+				updateCurrentText()
+			end
+
+			local effectSheet = vgui.Create( "DPropertySheet", panel )
+			effectSheet:Dock( TOP )
+			effectSheet:SetTall( 300 )
+			effectSheet:DockMargin( 5, 5, 5, 5 )
+			effectSheet:SetZPos( orderIndex )
+			orderIndex = orderIndex + 1
+			
+			local strokePanel = vgui.Create( "DPanel", effectSheet )
+			strokePanel:DockMargin( 5, 0, 5, 5 )
+			strokePanel:Dock( FILL )
+			strokePanel:SetPaintBackgroundEnabled( true )
+
+			function strokePanel:ApplySchemeSettings()
+				strokePanel:SetBGColor( 120, 120, 120, 255 )
+			end
+
+			local strokeControl = vgui.Create( "DNumSlider", strokePanel )
+			strokeControl:SetTall( 20 )
+			strokeControl:SetText( "Stroke" )
+			strokeControl:SetMin( 0 )
+			strokeControl:SetMax( 10 )
+			strokeControl:SetValue( effectData.stroke )
+			strokeControl:SetSize( 300, 25 )
+			strokeControl:DockMargin( 5, 0, 5, 5 )
+			strokeControl:Dock( TOP )
+
+			function strokeControl:OnValueChanged( value )
+				textSheet.entries[lineId].effectData.stroke = value
+				updateCurrentText()
+			end
+			
+			local strokeColorControl = vgui.Create( "DColorMixer", strokePanel )
+			strokeColorControl:SetPos( 5, 30 )
+			strokeColorControl:SetSize( 200, 160 )
+			strokeColorControl:SetColor( effectData.strokeColor )
+			strokeColorControl:DockMargin( 5, 0, 5, 5 )
+			strokeColorControl:Dock( TOP )
+
+			function strokeColorControl:ValueChanged( color )
+				textSheet.entries[lineId].effectData.strokeColor = TableToColor( color )
+				updateCurrentText()
+			end
+
+			effectSheet:AddSheet( "Stroke", strokePanel, "icon16/pencil.png" )
+
+			local shadowPanel = vgui.Create( "DPanel", effectSheet )
+			shadowPanel:DockMargin( 5, 0, 5, 5 )
+			shadowPanel:Dock( FILL )
+			shadowPanel:SetPaintBackgroundEnabled( true )
+
+			function shadowPanel:ApplySchemeSettings()
+				shadowPanel:SetBGColor( 120, 120, 120, 255 )
+			end
+
+			local shadowBlurControl = vgui.Create( "DNumSlider", shadowPanel )
+			shadowBlurControl:SetTall( 20 )
+			shadowBlurControl:SetText( "Shadow Blur" )
+			shadowBlurControl:SetMin( 0 )
+			shadowBlurControl:SetMax( 10 )
+			shadowBlurControl:SetValue( effectData.shadowBlur )
+			shadowBlurControl:SetSize( 300, 25 )
+			shadowBlurControl:DockMargin( 5, 0, 5, 5 )
+			shadowBlurControl:Dock( TOP )
+
+			function shadowBlurControl:OnValueChanged( value )
+				textSheet.entries[lineId].effectData.shadowBlur = value
+				updateCurrentText()
+			end
+
+			local shadowColorControl = vgui.Create( "DColorMixer", shadowPanel )
+			shadowColorControl:SetPos( 5, 30 )
+			shadowColorControl:SetSize( 200, 160 )
+			shadowColorControl:SetColor( effectData.shadowColor )
+			shadowColorControl:DockMargin( 5, 5, 5, 5 )
+			shadowColorControl:Dock( TOP )
+
+			function shadowColorControl:ValueChanged( color )
+				textSheet.entries[lineId].effectData.shadowColor = TableToColor( color )
+				updateCurrentText()
+			end
+			
+			local shadowOffsetControlX = vgui.Create( "DNumSlider", shadowPanel )
+			shadowOffsetControlX:SetTall( 20 )
+			shadowOffsetControlX:SetText( "Shadow Offset X" )
+			shadowOffsetControlX:SetMin( -10 )
+			shadowOffsetControlX:SetMax( 10 )
+			shadowOffsetControlX:SetValue( effectData.shadowOffset[1] )
+			shadowOffsetControlX:SetSize( 300, 25 )
+			shadowOffsetControlX:DockMargin( 5, 0, 5, 5 )
+			shadowOffsetControlX:Dock( TOP )
+
+			function shadowOffsetControlX:OnValueChanged( value )
+				textSheet.entries[lineId].effectData.shadowOffset[1] = value
+				updateCurrentText()
+			end
+
+			local shadowOffsetControlY = vgui.Create( "DNumSlider", shadowPanel )
+			shadowOffsetControlY:SetTall( 20 )
+			shadowOffsetControlY:SetText( "Shadow Offset Y" )
+			shadowOffsetControlY:SetMin( -10 )
+			shadowOffsetControlY:SetMax( 10 )
+			shadowOffsetControlY:SetValue( effectData.shadowOffset[2] )
+			shadowOffsetControlY:SetSize( 300, 25 )
+			shadowOffsetControlY:DockMargin( 5, 0, 5, 5 )
+			shadowOffsetControlY:Dock( TOP )
+
+			function shadowOffsetControlY:OnValueChanged( value )
+				textSheet.entries[lineId].effectData.shadowOffset[2] = value
+				updateCurrentText()
+			end
+
+			effectSheet:AddSheet( "Shadow", shadowPanel, "icon16/shading.png" )
+
 			function textEntry:OnChange()
-				textSheet.entries[self.id].text = self:GetValue()
+				textSheet.entries[lineId].text = self:GetValue()
 
 				updateCurrentText()
 			end
@@ -399,6 +626,9 @@ if CLIENT then
 				lastPresetFiles = lastPresetFiles .. fileName
 			end
 		end
+		timer.Simple( 0, function()
+			presetPanel:OnSelect( 1, "default", nil )
+		end )
 
 		panel:AddItem( presetPanel )
 		panel:AddItem( textSheet )
@@ -425,6 +655,14 @@ if CLIENT then
 			else
 				ply.textscreen_revamped.currentTextScreenText = ply.textscreen_revamped.currentTextScreenText or ""
 			end
+		end
+
+		local textscreens = ents.FindByClass( "textscreen" )
+		for _, textscreen in pairs( textscreens ) do
+			net.Start( "RetrieveTextscreenText" )
+			net.WritePlayer( LocalPlayer() )
+			net.WriteEntity( textscreen )
+			net.SendToServer()
 		end
 	end )
 end
