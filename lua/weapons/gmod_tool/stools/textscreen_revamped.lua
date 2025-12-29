@@ -38,8 +38,9 @@ if CLIENT then
 		end
 
 		ent.PhysCollide = CreatePhysCollideBox( Vector( scale.x * -0.5, scale.y * -0.5, scale.z * -0.5 ), Vector( scale.x * 0.5, scale.y * 0.5, scale.z * 0.5 ) )
-		if not ply.textscreen_revamped then return end
+
 		ent:SetText( ply.textscreen_revamped.currentTextScreenText )
+		print( ent.text )
 		ent:UpdateHTML()
 	end )
 
@@ -126,18 +127,51 @@ if CLIENT then
 	if not file.Exists( "textscreen_revamped", "DATA" ) then
 		file.CreateDir( "textscreen_revamped" )
 	end
-
+	--[[
+	<text style="
+	--font: Coolvetica;
+	--size: 6;
+	--color: rgb( 180, 220, 255 );
+	--shadow-color: rgb( 0, 180, 255 );
+	--stroke-color: #0000;
+	">
+	garry's mod textscreens revamped
+	]]
 	if not file.Exists( defaultFileName, "DATA" ) then
-		file.Write( defaultFileName, [[
-<text style="
---font: Coolvetica;
---size: 6;
---color: rgb( 180, 220, 255 );
---shadow-color: rgb( 0, 180, 255 );
---stroke-color: #0000;
-">
-garry's mod textscreens revamped
-		]] )
+		file.Write( defaultFileName, util.TableToJSON( {
+			entries = {
+				{
+					text = "garry's mod textscreens revamped",
+					effectData = {
+						font = "Coolvetica",
+						size = 6,
+						color = {
+							r = 180,
+							g = 220,
+							b = 255,
+							a = 255
+						},
+						shadowColor = {
+							r = 0,
+							g = 180,
+							b = 255,
+							a = 255
+						},
+						strokeColor = {
+							r = 0,
+							g = 0,
+							b = 0,
+							a = 0
+						},
+						stroke = 1
+					}
+				}
+			}
+		}, true ) )
+	end
+
+	local function TableToColor( tbl )
+		return tbl and Color( tbl.r, tbl.g, tbl.b, tbl.a ) or nil
 	end
 
 	function TOOL.BuildCPanel( panel )
@@ -182,7 +216,6 @@ garry's mod textscreens revamped
 			ply.textscreen_revamped.currentTextScreenText = ""
 			
 			for i, entry in ipairs( textSheet.entries ) do
-				
 				ply.textscreen_revamped.currentTextScreenText = ply.textscreen_revamped.currentTextScreenText .. 
 				string.format( [[
 				<text style="
@@ -211,15 +244,15 @@ garry's mod textscreens revamped
 		
 		local function addTextLine( text, effectData )
 			text = text or ""
-			effectData = effectData or {
-				font = "Coolvetica",
-				size = 6,
-				color = Color( 255, 255, 255, 255 ),
-				shadowColor = Color( 0, 0, 0, 255 ),
-				strokeColor = Color( 0, 0, 0, 255 ),
-				stroke = 1,
+			effectData = effectData or {}
+			effectData = {
+				font = effectData.font or "Coolvetica",
+				size = effectData.size or 6,
+				color = TableToColor( effectData.color ) or Color( 255, 255, 255, 255 ),
+				shadowColor = TableToColor( effectData.shadowColor ) or Color( 0, 0, 0, 255 ),
+				strokeColor = TableToColor( effectData.strokeColor ) or Color( 0, 0, 0, 255 ),
+				stroke = effectData.stroke or 1,
 			}
-
 
 			local panel = vgui.Create( "DPanel", textSheet )
 			panel:DockMargin( 5, 0, 5, 5 )
@@ -273,6 +306,11 @@ garry's mod textscreens revamped
 			textEntry:SetValue( text )
 			textEntry.id = #textSheet.entries + 1
 
+			textSheet.entries[textEntry.id] = {
+				text = text,
+				effectData = effectData
+			}
+
 			--- Effect controls
 
 			-- font dropdown
@@ -310,18 +348,13 @@ garry's mod textscreens revamped
 				updateCurrentText()
 			end
 
-			textSheet.entries[#textSheet.entries + 1] = {
-				text = text,
-				effectData = effectData
-			}
-
 			function textEntry:OnChange()
 				textSheet.entries[self.id].text = self:GetValue()
 
 				updateCurrentText()
 			end
 
-			textSheet:AddSheet( "Line " .. #textSheet:GetItems() + 1, panel, "icon16/book_open.png" )
+			textSheet:AddSheet( "Line " .. #textSheet.entries, panel, "icon16/book_open.png" )
 		end
 
 		addTextLine()
@@ -338,16 +371,13 @@ garry's mod textscreens revamped
 
 			local data = util.JSONToTable( contents )
 
-			for _, entry in pairs( data.entries ) do
+			for id, entry in pairs( data.entries ) do
 				addTextLine( entry.text, entry.effectData )
 			end
 
-			LocalPlayer().textscreen_revamped.currentTextScreenText = data.text
+			textSheet:CloseTab( textSheet:GetItems()[1].Tab, true )
 
-			net.Start( "UpdatePlayerCurrentTextscreenText" )
-			net.WritePlayer(  LocalPlayer() )
-			net.WriteString( data.text )
-			net.SendToServer()
+			updateCurrentText()
 		end
 
 		-- Override this bitch since we're not using cvars
@@ -356,11 +386,10 @@ garry's mod textscreens revamped
 			lastPresetFiles = ""
 
 			local data = {
-				text = LocalPlayer().textscreen_revamped.currentTextScreenText,
 				entries = textSheet.entries
 			}
 
-			file.Write( "textscreen_revamped/" .. name .. ".txt", util.TableToJSON( data ) )
+			file.Write( "textscreen_revamped/" .. name .. ".txt", util.TableToJSON( data, true ) )
 			presetPanel:Clear()
 			files, directories = file.Find( "textscreen_revamped/*.txt", "DATA" )
 
@@ -392,9 +421,9 @@ garry's mod textscreens revamped
 			ply.textscreen_revamped = ply.textscreen_revamped or {}
 			if ply == LocalPlayer() then
 				local lastSavedTxt = file.Read( defaultFileName, "DATA" ) or ""
-				ply.textscreen_revamped.currentTextScreenText = lastSavedTxt
+				ply.textscreen_revamped.currentTextScreenText = lastSavedTxt or ""
 			else
-				ply.textscreen_revamped.currentTextScreenText = ""
+				ply.textscreen_revamped.currentTextScreenText = ply.textscreen_revamped.currentTextScreenText or ""
 			end
 		end
 	end )

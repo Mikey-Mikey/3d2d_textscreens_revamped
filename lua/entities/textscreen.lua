@@ -43,7 +43,11 @@ else
 	net.Receive( "UpdatePlayerCurrentTextscreenText", function()
 		local ply = net.ReadPlayer()
 		local txt = net.ReadString()
-		ply:SetNWString( "CurrentTextscreenText", txt )
+
+		net.Start("UpdatePlayerCurrentTextscreenText")
+		net.WritePlayer( ply )
+		net.WriteString( txt )
+		net.Broadcast()
 	end )
 
 	-- This is used to scale the textscreen physics based on the text length
@@ -52,8 +56,6 @@ else
 		local w = net.ReadFloat()
 		local h = net.ReadFloat()
 		local txt = net.ReadString()
-
-		textscreen:SetNWString( "Text", txt )
 
 		SetTextscreenText( textscreen, w, h )
 	end )
@@ -77,6 +79,7 @@ function ENT:Initialize()
 		self.modelColor = Color( 255, 0, 0, 5 )
 		self.sizeAnim = 0
 		self.shouldDraw = true
+		self.text = ""
 	end
 	self:DrawShadow( false )
 end
@@ -216,12 +219,12 @@ if CLIENT then
 						text-align: center;
 						white-space: pre-wrap;
 						color: var(--color);
-						-webkit-text-stroke: calc( var( --stroke ) * 1px + 2px ) var( --stroke-color );
+						-webkit-text-stroke: calc( var( --stroke ) * ( var( --size ) / 6 ) * 1px + 2px ) var( --stroke-color );
 						font-family: var(--font);
 						font-size: calc( var(--size) * 1em );
 						font-style: var(--font-style);
 						font-weight: var(--font-weight);
-						text-shadow: calc( var( --shadow-x ) * 1em ) calc( var( --shadow-y ) * 1em ) calc( var( --shadow-blur ) * 0.1em ) var( --shadow-color );
+						text-shadow: calc( var( --shadow-x ) * ( var( --size ) / 6 ) * 1em ) calc( var( --shadow-y ) * ( var( --size ) / 6 ) * 1em ) calc( var( --shadow-blur ) * ( var( --size ) / 6 ) * 0.1em ) var( --shadow-color );
 					}
 				</style>
 				<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.7/purify.min.js"></script>
@@ -289,7 +292,7 @@ if CLIENT then
 			return
 		end
 		]]
-		if self.htmlPanel == nil and self:GetNWString( "Text", "" ) ~= "" then
+		if self.htmlPanel == nil and self.text ~= "" then
 			self:UpdateHTML()
 		end
 
