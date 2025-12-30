@@ -136,63 +136,10 @@ if CLIENT then
 	">
 	garry's mod textscreens revamped
 	]]
-	if not file.Exists( defaultFileName, "DATA" ) then
-		file.Write( defaultFileName, util.TableToJSON( {
-			entries = {
-				{
-					text = "garry's mod",
-					effectData = {
-						font = "Coolvetica",
-						size = 6,
-						color = {
-							r = 180,
-							g = 220,
-							b = 255,
-							a = 255
-						},
-						shadowColor = {
-							r = 0,
-							g = 180,
-							b = 255,
-							a = 255
-						},
-						strokeColor = {
-							r = 0,
-							g = 0,
-							b = 0,
-							a = 0
-						},
-						stroke = 1
-					}
-				},
-				{
-					text = "textscreens revamped",
-					effectData = {
-						font = "Coolvetica",
-						size = 6,
-						color = {
-							r = 255,
-							g = 192,
-							b = 255,
-							a = 255
-						},
-						shadowColor = {
-							r = 255,
-							g = 0,
-							b = 255,
-							a = 255
-						},
-						strokeColor = {
-							r = 0,
-							g = 0,
-							b = 0,
-							a = 0
-						},
-						stroke = 1
-					}
-				},
-			}
-		}, true ) )
+	for name, data in pairs( TEXTSCREEN_REVAMPED.DEFAULT_PRESETS ) do
+		if not file.Exists( "textscreen_revamped/" .. name .. ".txt", "DATA" ) then
+			file.Write( "textscreen_revamped/" .. name .. ".txt", util.TableToJSON( data, true ) )
+		end
 	end
 
 	local function TableToColor( tbl )
@@ -457,9 +404,16 @@ if CLIENT then
 			local colorControl = vgui.Create( "DColorMixer", panel )
 			colorControl:SetSize( 200, 160 )
 			colorControl:SetColor( effectData.color )
-			colorControl:DockMargin( 5, 0, 5, 5 )
+			colorControl:DockMargin( 50, 5, 5, 5 )
 			colorControl:Dock( TOP )
 			colorControl:SetZPos( orderIndex )
+			colorControl:InvalidateParent( true )
+			orderIndex = orderIndex + 1
+
+			colorControl.label = vgui.Create( "DLabel", panel )
+			colorControl.label:SetPos( colorControl:GetX() - 45, colorControl:GetY() )
+			colorControl.label:SetText( "Color" )
+			colorControl.label:SetZPos( orderIndex )
 			orderIndex = orderIndex + 1
 
 			function colorControl:ValueChanged( color )
