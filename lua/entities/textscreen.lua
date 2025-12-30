@@ -257,17 +257,17 @@ if CLIENT then
 						white-space: pre-wrap;
 						color: var(--color);
 						margin: 
-							calc( max( 0.01, max( 0, var( --shadow-y ) * -1 ) ) * 1em + var(--shadow-blur) * 0.2em )
-							calc( max( 0.01, max( 0, var( --shadow-x ) ) ) * 1em + var(--shadow-blur) * 0.2em )
-							calc( max( 0.01, max( 0, var( --shadow-y ) ) ) * 1em + var(--shadow-blur) * 0.2em )
-							calc( max( 0.01, max( 0, var( --shadow-x ) * -1 ) ) * 1em + var(--shadow-blur) * 0.2em );
+							calc( max( 0.01, max( 0, var( --shadow-y ) * -1 ) * 0.2 ) * 1em + var(--shadow-blur) * 0.2em )
+							calc( max( 0.01, max( 0, var( --shadow-x ) ) * 0.2 ) * 1em + var(--shadow-blur) * 0.2em )
+							calc( max( 0.01, max( 0, var( --shadow-y ) ) * 0.2 ) * 1em + var(--shadow-blur) * 0.2em )
+							calc( max( 0.01, max( 0, var( --shadow-x ) * -1 ) * 0.2 ) * 1em + var(--shadow-blur) * 0.2em );
 						padding: 0;
 						font-family: var(--font);
 						font-size: calc( var(--size) * 1em );
 						font-style: var(--font-style);
 						font-variation-settings: "wght" var( --weight );
 						-webkit-text-stroke: calc( var( --stroke ) * ( var( --size ) / 6 ) * 2px + 4px * var( --size ) / 6 ) var( --stroke-color );
-						filter: drop-shadow(calc( var( --shadow-x ) * 1em ) calc( var( --shadow-y ) * 1em ) calc( var( --shadow-blur ) * 0.1em ) var( --shadow-color ));
+						filter: drop-shadow(calc( var( --shadow-x ) * 0.2em ) calc( var( --shadow-y ) * 0.2em ) calc( var( --shadow-blur ) * 0.1em ) var( --shadow-color ));
 
 					}
 					text::before {
@@ -394,6 +394,10 @@ if CLIENT then
 		mat:Rotate( self:GetAngles() )
 		mat:Rotate( Angle( 0, -90, 90 ) )
 		mat:Translate( Vector( -self.size[1], self.size[2], 0 ) * 0.5 * scl )
+
+		local reverseMat = Matrix()
+
+		reverseMat:SetScale( Vector( 1, 1, 1 ) )
 
 		vgui.Start3D2D( mat:GetTranslation(), mat:GetAngles(), scl )
 			self.htmlPanel:Paint3D2D()

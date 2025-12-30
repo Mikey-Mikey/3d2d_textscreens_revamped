@@ -268,8 +268,28 @@ if CLIENT then
 			net.WriteString( ply.textscreen_revamped.currentTextScreenText )
 			net.SendToServer()
 		end
+
+		-- Remove a text line and shift down the other lines properly
+		-- Make sure to set new lineId's
+		function textSheet.removeTextLine( id )
+			if #textSheet.entries < 2 then return end
+			
+			table.remove( textSheet.entries, id )
+			
+			local tabs = textSheet:GetItems()
+			for i = #tabs, 2, -1 do
+				local tabData = tabs[i]
+				textSheet:CloseTab( tabData.Tab, true )
+			end
+			for id, entry in ipairs( textSheet.entries ) do
+				textSheet.addTextLine( entry.text, entry.effectData, id )
+			end
+			textSheet:CloseTab( textSheet:GetItems()[1].Tab, true )
+
+			updateCurrentText()
+		end
 		
-		local function addTextLine( text, effectData )
+		function textSheet.addTextLine( text, effectData, id )
 			text = text or ""
 			effectData = effectData or {}
 			effectData = {
@@ -284,12 +304,12 @@ if CLIENT then
 				shadowOffset = effectData.shadowOffset or { 0, 0 },
 			}
 
-			local lineId = #textSheet.entries + 1
-
 			local panel = vgui.Create( "DScrollPanel", textSheet )
 			panel:DockMargin( 5, 5, 5, 5 )
 			panel:Dock( FILL )
 			panel:SetPaintBackgroundEnabled( true )
+
+			panel.lineId = id
 
 			function panel:ApplySchemeSettings()
 				panel:SetBGColor( 120, 120, 120, 255 )
@@ -308,12 +328,13 @@ if CLIENT then
 			addLineButton:Dock( RIGHT )
 			addLineButton:SetWidth( 20 )
 			addLineButton:SetHeight( 20 )
+			addLineButton:SetTooltip( "Add a new text line" )
 			--addLineButton:DockPadding( 0, 0, 0, 0 )
 
 			addLineButton.Paint = function() end
 
 			addLineButton.DoClick = function()
-				addTextLine()
+				textSheet.addTextLine( nil, nil, #textSheet.entries + 1 )
 			end
 
 			local removeLineButton = vgui.Create( "DButton", buttonPanel )
@@ -322,16 +343,13 @@ if CLIENT then
 			removeLineButton:Dock( RIGHT )
 			removeLineButton:SetWidth( 20 )
 			removeLineButton:SetHeight( 20 )
+			removeLineButton:SetTooltip( "Remove this text line" )
 			--removeLineButton:DockPadding( 0, 0, 0, 0 )
 
 			removeLineButton.Paint = function() end
 
 			removeLineButton.DoClick = function()
-				local tabs = textSheet:GetItems()
-				if #tabs == 1 then return end
-				textSheet:CloseTab( tabs[#tabs].Tab, true )
-				table.remove( textSheet.entries, #textSheet.entries )
-				updateCurrentText()
+				textSheet.removeTextLine( panel.lineId )
 			end
 
 			-- font dropdown
@@ -346,7 +364,7 @@ if CLIENT then
 			fontControl:SetValue( effectData.font )
 
 			function fontControl:OnSelect( index, value, data )
-				textSheet.entries[lineId].effectData.font = value
+				textSheet.entries[panel.lineId].effectData.font = value
 				updateCurrentText()
 			end
 
@@ -363,7 +381,7 @@ if CLIENT then
 			textEntry:SetZPos( orderIndex )
 			orderIndex = orderIndex + 1
 
-			textSheet.entries[lineId] = {
+			textSheet.entries[panel.lineId] = {
 				text = text,
 				effectData = effectData
 			}
@@ -380,7 +398,7 @@ if CLIENT then
 			orderIndex = orderIndex + 1
 
 			function sizeControl:OnValueChanged( value )
-				textSheet.entries[lineId].effectData.size = value
+				textSheet.entries[panel.lineId].effectData.size = value
 				updateCurrentText()
 			end
 
@@ -397,7 +415,7 @@ if CLIENT then
 			orderIndex = orderIndex + 1
 
 			function weightControl:OnValueChanged( value )
-				textSheet.entries[lineId].effectData.weight = value
+				textSheet.entries[panel.lineId].effectData.weight = value
 				updateCurrentText()
 			end
 
@@ -417,7 +435,7 @@ if CLIENT then
 			orderIndex = orderIndex + 1
 
 			function colorControl:ValueChanged( color )
-				textSheet.entries[lineId].effectData.color = TableToColor( color )
+				textSheet.entries[panel.lineId].effectData.color = TableToColor( color )
 				updateCurrentText()
 			end
 
@@ -448,7 +466,7 @@ if CLIENT then
 			strokeControl:Dock( TOP )
 
 			function strokeControl:OnValueChanged( value )
-				textSheet.entries[lineId].effectData.stroke = value
+				textSheet.entries[panel.lineId].effectData.stroke = value
 				updateCurrentText()
 			end
 			
@@ -460,7 +478,7 @@ if CLIENT then
 			strokeColorControl:Dock( TOP )
 
 			function strokeColorControl:ValueChanged( color )
-				textSheet.entries[lineId].effectData.strokeColor = TableToColor( color )
+				textSheet.entries[panel.lineId].effectData.strokeColor = TableToColor( color )
 				updateCurrentText()
 			end
 
@@ -486,7 +504,7 @@ if CLIENT then
 			shadowBlurControl:Dock( TOP )
 
 			function shadowBlurControl:OnValueChanged( value )
-				textSheet.entries[lineId].effectData.shadowBlur = value
+				textSheet.entries[panel.lineId].effectData.shadowBlur = value
 				updateCurrentText()
 			end
 
@@ -498,7 +516,7 @@ if CLIENT then
 			shadowColorControl:Dock( TOP )
 
 			function shadowColorControl:ValueChanged( color )
-				textSheet.entries[lineId].effectData.shadowColor = TableToColor( color )
+				textSheet.entries[panel.lineId].effectData.shadowColor = TableToColor( color )
 				updateCurrentText()
 			end
 			
@@ -513,7 +531,7 @@ if CLIENT then
 			shadowOffsetControlX:Dock( TOP )
 
 			function shadowOffsetControlX:OnValueChanged( value )
-				textSheet.entries[lineId].effectData.shadowOffset[1] = value
+				textSheet.entries[panel.lineId].effectData.shadowOffset[1] = value
 				updateCurrentText()
 			end
 
@@ -528,22 +546,22 @@ if CLIENT then
 			shadowOffsetControlY:Dock( TOP )
 
 			function shadowOffsetControlY:OnValueChanged( value )
-				textSheet.entries[lineId].effectData.shadowOffset[2] = value
+				textSheet.entries[panel.lineId].effectData.shadowOffset[2] = value
 				updateCurrentText()
 			end
 
 			effectSheet:AddSheet( "Shadow", shadowPanel, "icon16/shading.png" )
 
 			function textEntry:OnChange()
-				textSheet.entries[lineId].text = self:GetValue()
+				textSheet.entries[panel.lineId].text = self:GetValue()
 
 				updateCurrentText()
 			end
 
-			textSheet:AddSheet( "Line " .. #textSheet.entries, panel, "icon16/book_open.png" )
+			textSheet:AddSheet( "Line " .. panel.lineId, panel, "icon16/book_open.png" )
 		end
 
-		addTextLine()
+		textSheet.addTextLine( nil, nil, 1 )
 
 		function presetPanel:OnSelect( id, name, _ )
 			local contents = file.Read( "textscreen_revamped/" .. name .. ".txt", "DATA" )
@@ -558,7 +576,7 @@ if CLIENT then
 			local data = util.JSONToTable( contents )
 
 			for id, entry in pairs( data.entries ) do
-				addTextLine( entry.text, entry.effectData )
+				textSheet.addTextLine( entry.text, entry.effectData, id )
 			end
 
 			textSheet:CloseTab( textSheet:GetItems()[1].Tab, true )
