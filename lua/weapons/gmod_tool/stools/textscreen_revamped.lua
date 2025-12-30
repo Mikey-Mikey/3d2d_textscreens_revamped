@@ -274,8 +274,15 @@ if CLIENT then
 			ply.textscreen_revamped.currentTextScreenText = ""
 			
 			for i, entry in ipairs( textSheet.entries ) do
+
+				local text = entry.text
+				text = string.Replace( text, "<", "&lt;" )
+				text = string.Replace( text, ">", "&gt;" )
 				
 				local textDataStr = entry.text
+				textDataStr = string.Replace( textDataStr, "<", "&lt;" )
+				textDataStr = string.Replace( textDataStr, ">", "&gt;" )
+				textDataStr = string.Replace( textDataStr, "\\", "\\\\" )
 				textDataStr = string.Replace( textDataStr, "\n", " \\A " )
 				textDataStr = string.Replace( textDataStr, "'", "\\'" )
 				textDataStr = string.Replace( textDataStr, '"', '&quot;' )
@@ -306,7 +313,7 @@ if CLIENT then
 				entry.effectData.shadowOffset[1],
 				entry.effectData.shadowOffset[2],
 				textDataStr,
-				entry.text ) .. "\n"
+				text ) .. "\n"
 			end
 
 			net.Start( "UpdatePlayerCurrentTextscreenText" )
