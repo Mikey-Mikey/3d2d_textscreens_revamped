@@ -11,7 +11,6 @@ TOOL.Name = "#tool.textscreen_revamped.name"
 TOOL.Category = "Text Screens Revamped"
 TOOL.ClientConVar["should_parent"] = 1
 
-
 if CLIENT then
 	TOOL.Information = {
 		{
@@ -83,6 +82,8 @@ end
 function TOOL:LeftClick( trace )
 	if CLIENT then return true end
 
+	if not self:GetOwner():CheckLimit( "textscreens" ) then return true end
+
 	if CPPI and self:GetClientBool( "should_parent" ) and IsValid( trace.Entity ) then
 		local traceEnt = trace.Entity
 		if not traceEnt:CPPICanTool( self:GetOwner() ) then return false end
@@ -131,11 +132,15 @@ function TOOL:LeftClick( trace )
 	undo.AddEntity( ent )
 	undo.Finish()
 
+	self:GetOwner():AddCount( "textscreens", ent )
+
 	return true
 end
 
 function TOOL:Reload()
 	if CLIENT then return true end
+
+	if not self:GetOwner():CheckLimit( "textscreens" ) then return true end
 
 	if CPPI and self:GetClientBool( "should_parent" ) and IsValid( trace.Entity ) then
 		local traceEnt = trace.Entity
@@ -190,6 +195,8 @@ function TOOL:Reload()
 	undo.SetPlayer( self:GetOwner() )
 	undo.AddEntity( ent )
 	undo.Finish()
+
+	self:GetOwner():AddCount( "textscreens", ent )
 
 	return true
 end

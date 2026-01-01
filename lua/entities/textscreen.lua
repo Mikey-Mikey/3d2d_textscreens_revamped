@@ -13,6 +13,7 @@ AddCSLuaFile( "includes/3d2dvgui.lua" )
 
 if CLIENT then
 	include( "includes/3d2dvgui.lua" )
+	language.Add("sboxlimit_textscreens", "You've hit the Textscreens limit!")
 else
 	util.AddNetworkString( "RetrieveTextscreenText" )
 	resource.AddSingleFile( "resource/fonts/Coolvetica.ttf" )
@@ -20,6 +21,8 @@ else
 	resource.AddSingleFile( "resource/fonts/Roboto.ttf" )
 	resource.AddSingleFile( "resource/fonts/Segment.ttf" )
 	resource.AddSingleFile( "resource/fonts/Spicy Sale.ttf" )
+
+	CreateConVar( "sbox_maxtextscreens", 10, { FCVAR_NOTIFY }, "Maximum textscreens a single player can create" )
 
 	function SetTextscreenText( textscreen, width, height, duped )
 		if not IsValid( textscreen ) then return end
@@ -139,7 +142,7 @@ if SERVER then
 		net.WriteBool( true )
 		net.Broadcast()
 
-		--self:GetNWEntity( "owner" ):AddCount( "textscreen", self )
+		self:GetNWEntity( "owner" ):AddCount( "textscreen", self )
 	end
 end
 
