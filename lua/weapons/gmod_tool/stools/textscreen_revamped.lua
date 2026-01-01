@@ -3,6 +3,7 @@ AddCSLuaFile()
 if SERVER then
 	util.AddNetworkString( "SetTextscreenText" )
 	util.AddNetworkString( "UpdatePlayerCurrentTextscreenText" )
+	util.AddNetworkString( "RetrievePlayerCurrentTextscreenText" )
 end
 
 TOOL.Author = "Mikey"
@@ -27,15 +28,24 @@ if CLIENT then
 	language.Add( "tool.textscreen_revamped.right", "Update a Text Screen." )
 
 	net.Receive( "SetTextscreenText", function()
-		local ply = net.ReadEntity()
-		local ent = net.ReadEntity()
-		timer.Create( "WaitForTextscreen" .. tostring( ent ), 0.01, 0, function()
+		local ply = net.ReadPlayer()
+		local txt = net.ReadString()
+		txt = txt ~= "" and txt or ply.textscreen_revamped.currentTextScreenText
+		local entId = net.ReadInt( 32 )
+		local duped = net.ReadBool()
+		timer.Create( "WaitForTextscreen" .. tostring( entId ), 0.01, 0, function()
+			local ent = Entity( entId )
 			if not IsValid( ent ) then return end
+			if not IsValid( ply ) then return end
+			
+			if not ent.SetText then
+				timer.Remove( "WaitForTextscreen" .. tostring( entId ) )
+				return
+			end
+			ent:SetText( txt )
 
-			ent:SetText( ply.textscreen_revamped.currentTextScreenText )
-
-			ent:UpdateHTML()
-			timer.Remove( "WaitForTextscreen" .. tostring( ent ) )
+			ent:UpdateHTML( duped )
+			timer.Remove( "WaitForTextscreen" .. tostring( entId ) )
 		end )
 	end )
 
@@ -50,10 +60,24 @@ if CLIENT then
 	net.Receive( "RetrieveTextscreenText", function()
 		local ent = net.ReadEntity()
 		local txt = net.ReadString()
-		print( txt )
+
 		ent:SetText( txt )
 		ent:UpdateHTML()
 	end )
+end
+
+if SERVER then
+	local function SpawnTextscreen( ply, data )
+		local ent = ents.Create( "textscreen" ) --duplicator.GenericDuplicatorFunction( ply, data )
+		ent.boxSize = data.Mins - data.Maxs
+		ent:SetPos( data.Pos )
+		ent:SetAngles( data.Angle )
+		ent:SetNWEntity( "owner", ply )
+		ent:Spawn()
+
+		return ent
+	end
+	duplicator.RegisterEntityClass( "textscreen", SpawnTextscreen, "Data" )
 end
 
 function TOOL:LeftClick( trace )
@@ -68,6 +92,7 @@ function TOOL:LeftClick( trace )
 	ent:SetPos( trace.HitPos + trace.HitNormal * 1 )
 	ent:SetAngles( trace.HitNormal:Angle() )
 	ent:Spawn()
+	ent:Activate()
 	ent:SetNWEntity( "owner", self:GetOwner() )
 
 	if CPPI then
@@ -76,12 +101,12 @@ function TOOL:LeftClick( trace )
 
 	if not IsValid( ent ) then return end
 
-	timer.Simple( 0, function() -- RAHHHHH I HATE THIS
-		net.Start( "SetTextscreenText" )
-		net.WriteEntity( self:GetOwner() )
-		net.WriteEntity( ent )
-		net.Broadcast()
-	end )
+	net.Start( "SetTextscreenText" )
+	net.WritePlayer( self:GetOwner() )
+	net.WriteString( "" )
+	net.WriteInt( ent:EntIndex(), 32 )
+	net.WriteBool( false )
+	net.Broadcast()
 
 	if self:GetClientBool( "should_parent" ) and IsValid( trace.Entity ) then
 		ent:SetParent( trace.Entity )
@@ -108,8 +133,10 @@ function TOOL:RightClick( trace )
 
 	if IsValid( ent ) and ent:GetClass() == "textscreen" then
 		net.Start( "SetTextscreenText" )
-		net.WriteEntity( self:GetOwner() )
-		net.WriteEntity( ent )
+		net.WritePlayer( self:GetOwner() )
+		net.WriteString( "" )
+		net.WriteInt( ent:EntIndex(), 32 )
+		net.WriteBool( false )
 		net.Broadcast()
 
 		return true
@@ -137,6 +164,7 @@ if CLIENT then
 	garry's mod textscreens revamped
 	]]
 	for name, data in pairs( TEXTSCREEN_REVAMPED.DEFAULT_PRESETS ) do
+		file.Delete( "textscreen_revamped/" .. name .. ".txt", "DATA" )
 		if not file.Exists( "textscreen_revamped/" .. name .. ".txt", "DATA" ) then
 			file.Write( "textscreen_revamped/" .. name .. ".txt", util.TableToJSON( data, true ) )
 		end
@@ -623,13 +651,19 @@ if CLIENT then
 		net.SendToServer()
 	end
 
+
+
 	hook.Add( "InitPostEntity", "TextscreenRevamped_PlayerInit", function()
+		timer.Create( "SendCurrentPlayerTextscreenText", 0.2, 0, function()
+			net.Start( "UpdatePlayerCurrentTextscreenText" )
+			net.WritePlayer(  LocalPlayer() )
+			net.WriteString( LocalPlayer().textscreen_revamped.currentTextScreenText or "" )
+			net.SendToServer()
+		end )
+
 		for _, ply in player.Iterator() do
 			ply.textscreen_revamped = ply.textscreen_revamped or {}
-			if ply == LocalPlayer() then
-				local lastSavedTxt = file.Read( defaultFileName, "DATA" ) or ""
-				ply.textscreen_revamped.currentTextScreenText = lastSavedTxt or ""
-			else
+			if ply ~= LocalPlayer() then
 				ply.textscreen_revamped.currentTextScreenText = ply.textscreen_revamped.currentTextScreenText or ""
 			end
 		end

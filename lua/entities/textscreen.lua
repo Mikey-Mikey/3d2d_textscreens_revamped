@@ -21,10 +21,13 @@ else
 	resource.AddSingleFile( "resource/fonts/Segment.ttf" )
 	resource.AddSingleFile( "resource/fonts/Spicy Sale.ttf" )
 
-	function SetTextscreenText( textscreen, width, height )
+	function SetTextscreenText( textscreen, width, height, duped )
 		if not IsValid( textscreen ) then return end
-
+		
 		local scale = Vector( 0.5, width, height )
+
+		textscreen.Mins, textscreen.Maxs = -scale * 0.5, scale * 0.5
+
 		textscreen:PhysicsInitBox( Vector( scale.x * -0.5, scale.y * -0.5, scale.z * -0.5 ), Vector( scale.x * 0.5, scale.y * 0.5, scale.z * 0.5 ) )
 		textscreen:SetCollisionBounds( Vector( scale.x * -0.5, scale.y * -0.5, scale.z * -0.5 ), Vector( scale.x * 0.5, scale.y * 0.5, scale.z * 0.5 ) )
 		textscreen:SetMoveType( MOVETYPE_VPHYSICS )
@@ -45,6 +48,7 @@ else
 		end
 
 		textscreen.PhysCollide = CreatePhysCollideBox( Vector( scale.x * -0.5, scale.y * -0.5, scale.z * -0.5 ), Vector( scale.x * 0.5, scale.y * 0.5, scale.z * 0.5 ) )
+		
 	end
 
 	net.Receive( "UpdatePlayerCurrentTextscreenText", function()
@@ -63,10 +67,11 @@ else
 		local w = net.ReadFloat()
 		local h = net.ReadFloat()
 		local txt = net.ReadString()
+		local duped = net.ReadBool()
 
 		textscreen.text = txt
 
-		SetTextscreenText( textscreen, w, h )
+		SetTextscreenText( textscreen, w, h, duped )
 	end )
 
 	net.Receive( "RetrieveTextscreenText", function()
@@ -85,6 +90,28 @@ function ENT:Initialize()
 		self:SetModel( "models/hunter/blocks/cube05x05x05.mdl" )
 		self:SetMaterial( "models/debug/debugwhite" )
 		self:SetRenderMode( RENDERMODE_TRANSCOLOR )
+		if self.boxSize then
+			self:PhysicsInitBox( -self.boxSize * 0.5, self.boxSize * 0.5 )
+			self:SetCollisionBounds( -self.boxSize * 0.5, self.boxSize * 0.5 )
+			self:SetMoveType( MOVETYPE_VPHYSICS )
+			self:SetSolid( SOLID_VPHYSICS )
+			self:EnableCustomCollisions( true )
+
+			self:SetCollisionGroup( COLLISION_GROUP_WORLD )
+			local mass = 50
+			self:GetPhysicsObject():SetMass( mass )
+			self:SetSolidFlags( 0 )
+			self:AddSolidFlags( FSOLID_CUSTOMRAYTEST )
+			self:AddSolidFlags( FSOLID_CUSTOMBOXTEST )
+
+			self:CollisionRulesChanged()
+
+			if IsValid( self:GetParent() ) then
+				self:SetNotSolid( true )
+			end
+
+			self.PhysCollide = CreatePhysCollideBox( -self.boxSize * 0.5, self.boxSize * 0.5 )
+		end
 	end
 
 	if CLIENT then
@@ -101,6 +128,17 @@ function ENT:Initialize()
 		self.text = ""
 	end
 	self:DrawShadow( false )
+end
+
+if SERVER then
+	function ENT:OnDuplicated( data )
+		net.Start( "SetTextscreenText" )
+		net.WritePlayer( self:GetNWEntity( "owner" ) )
+		net.WriteString( data.text )
+		net.WriteInt( self:EntIndex(), 32 )
+		net.WriteBool( true )
+		net.Broadcast()
+	end
 end
 
 function ENT:TestCollision( startpos, delta, isbox, extents )
@@ -181,7 +219,7 @@ if CLIENT then
 		self.PhysCollide:Destroy()
 	end
 
-	function ENT:UpdateHTML()
+	function ENT:UpdateHTML( duped )
 		if self.htmlPanel ~= nil then
 			self.htmlPanel:Remove()
 		end
@@ -319,13 +357,15 @@ if CLIENT then
 			self:SetSize( Vector( w, h, 0 ) )
 
 			if LocalPlayer() ~= self:GetNWEntity( "owner" ) then return end
-
-			net.Start( "SetTextscreenText" )
-			net.WriteEntity( self )
-			net.WriteFloat( scale[2] )
-			net.WriteFloat( scale[3] )
-			net.WriteString( self.text )
-			net.SendToServer()
+			if not duped then
+				net.Start( "SetTextscreenText" )
+				net.WriteEntity( self )
+				net.WriteFloat( scale[2] )
+				net.WriteFloat( scale[3] )
+				net.WriteString( self.text )
+				net.WriteBool( duped )
+				net.SendToServer()
+			end
 		end )
 
 		self.htmlPanel:QueueJavascript( [[
