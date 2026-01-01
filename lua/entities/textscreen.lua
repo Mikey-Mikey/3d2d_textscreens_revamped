@@ -138,6 +138,8 @@ if SERVER then
 		net.WriteInt( self:EntIndex(), 32 )
 		net.WriteBool( true )
 		net.Broadcast()
+
+		--self:GetNWEntity( "owner" ):AddCount( "textscreen", self )
 	end
 end
 

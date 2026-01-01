@@ -88,12 +88,86 @@ function TOOL:LeftClick( trace )
 		if not traceEnt:CPPICanTool( self:GetOwner() ) then return false end
 	end
 
+	local placeAng = trace.Normal:Angle()
+
+	if trace.Hit then
+		placeAng = trace.HitNormal:Angle()
+		if math.abs( trace.HitNormal[3] ) > 0.95 then
+			local offset = self:GetOwner():GetShootPos() - trace.HitPos
+
+			local upDot = placeAng:Up():Dot( offset:GetNormalized() )
+			local rightDot = placeAng:Right():Dot( offset:GetNormalized() )
+
+			placeAng:RotateAroundAxis( placeAng:Forward(), -math.atan2( rightDot, -upDot ) * 180 / math.pi + ( trace.HitNormal[3] < 0 and 180 or 0 ) )
+		end
+	end
+
 	local ent = ents.Create( "textscreen" )
 	ent:SetPos( trace.HitPos + trace.HitNormal * 1 )
-	ent:SetAngles( trace.HitNormal:Angle() )
+	ent:SetAngles( placeAng )
+	ent:SetNWEntity( "owner", self:GetOwner() )
 	ent:Spawn()
 	ent:Activate()
+
+	if CPPI then
+		ent:CPPISetOwner( self:GetOwner() )
+	end
+
+	if not IsValid( ent ) then return end
+
+	net.Start( "SetTextscreenText" )
+	net.WritePlayer( self:GetOwner() )
+	net.WriteString( "" )
+	net.WriteInt( ent:EntIndex(), 32 )
+	net.WriteBool( false )
+	net.Broadcast()
+
+	if self:GetClientBool( "should_parent" ) and IsValid( trace.Entity ) then
+		ent:SetParent( trace.Entity )
+	end
+
+	undo.Create( "Text Screen" )
+	undo.SetPlayer( self:GetOwner() )
+	undo.AddEntity( ent )
+	undo.Finish()
+
+	return true
+end
+
+function TOOL:Reload()
+	if CLIENT then return true end
+
+	if CPPI and self:GetClientBool( "should_parent" ) and IsValid( trace.Entity ) then
+		local traceEnt = trace.Entity
+		if not traceEnt:CPPICanTool( self:GetOwner() ) then return false end
+	end
+
+	local trace = util.TraceLine( {
+		start = self:GetOwner():GetShootPos(),
+		endpos = self:GetOwner():GetShootPos() + self:GetOwner():GetAimVector() * 100,
+		filter = self:GetOwner()
+	} )
+
+	local placeAng = trace.Normal:Angle()
+
+	if trace.Hit then
+		placeAng = trace.HitNormal:Angle()
+		if math.abs( trace.HitNormal[3] ) > 0.95 then
+			local offset = self:GetOwner():GetShootPos() - trace.HitPos
+
+			local upDot = placeAng:Up():Dot( offset:GetNormalized() )
+			local rightDot = placeAng:Right():Dot( offset:GetNormalized() )
+
+			placeAng:RotateAroundAxis( placeAng:Forward(), -math.atan2( rightDot, -upDot ) * 180 / math.pi + ( trace.HitNormal[3] < 0 and 180 or 0 ) )
+		end
+	end
+
+	local ent = ents.Create( "textscreen" )
+	ent:SetPos( trace.HitPos )
+	ent:SetAngles( placeAng )
 	ent:SetNWEntity( "owner", self:GetOwner() )
+	ent:Spawn()
+	ent:Activate()
 
 	if CPPI then
 		ent:CPPISetOwner( self:GetOwner() )
@@ -642,6 +716,19 @@ if CLIENT then
 
 		panel:CheckBox( "Show Textscreen Bounds?", "textscreen_show_bounds" )
 		panel:Help( "This enables rendering bounds when holding either the toolgun or physgun." )
+
+		local renderDistanceSlider = vgui.Create( "DNumSlider", panel )
+		renderDistanceSlider:SetText( "Render Distance" )
+		renderDistanceSlider:SetMin( 0 )
+		renderDistanceSlider:SetMax( 10000 )
+		renderDistanceSlider:SetValue( TEXTSCREEN_REVAMPED.RenderDistanceCVar:GetInt() )
+		renderDistanceSlider:SetDecimals( 0 )
+		renderDistanceSlider:SetConVar( "textscreen_render_distance" )
+		renderDistanceSlider:Dock( TOP )
+		renderDistanceSlider:SetDark( true )
+
+		panel:AddItem( renderDistanceSlider )
+		panel:Help( "This controls the render distance of the textscreen. 0 = don't draw any textscreens" )
 
 		LocalPlayer().textscreen_revamped.currentTextScreenText = lastSavedTxt or ""
 
