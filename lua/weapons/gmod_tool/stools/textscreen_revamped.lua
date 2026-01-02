@@ -67,6 +67,8 @@ if SERVER then
 		local ent = ents.Create( "revamped_textscreen" ) --duplicator.GenericDuplicatorFunction( ply, data )
 		ent.boxSize = data.Mins - data.Maxs
 		ent.text = data.text
+		ent.parent = data.parent
+
 		ent:SetPos( data.Pos )
 		ent:SetAngles( data.Angle )
 		ent:SetNWEntity( "owner", ply )
@@ -105,6 +107,7 @@ function TOOL:LeftClick( trace )
 	ent:SetPos( trace.HitPos + trace.HitNormal * 1 )
 	ent:SetAngles( placeAng )
 	ent:SetNWEntity( "owner", self:GetOwner() )
+
 	ent:Spawn()
 	ent:Activate()
 
@@ -121,6 +124,7 @@ function TOOL:LeftClick( trace )
 	if self:GetClientBool( "should_parent" ) and IsValid( trace.Entity ) then
 		ent:SetParent( trace.Entity )
 	end
+
 
 	undo.Create( "Text Screen" )
 	undo.SetPlayer( self:GetOwner() )
@@ -180,6 +184,7 @@ function TOOL:Reload()
 	net.Send( self:GetOwner() )
 
 	if self:GetClientBool( "should_parent" ) and IsValid( trace.Entity ) then
+		ent.parent = trace.Entity 
 		ent:SetParent( trace.Entity )
 	end
 

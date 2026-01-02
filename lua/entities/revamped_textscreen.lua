@@ -26,7 +26,12 @@ else
 	CreateConVar( "sbox_maxrevamped_textscreens", 10, { FCVAR_NOTIFY }, "Maximum textscreens a single player can create" )
 
 	function SetTextscreenText( textscreen, width, height )
-		if not IsValid( textscreen ) or textscreen.boxSize then return end
+		if not IsValid( textscreen ) or textscreen.boxSize then
+			if IsValid( textscreen ) and IsValid( textscreen:GetParent() ) then
+				textscreen:SetNotSolid( true )
+			end
+			return
+		end
 		
 		local scale = Vector( 0.5, width, height )
 
@@ -87,6 +92,8 @@ else
 		net.WriteString( txt )
 		net.WriteInt( textscreenId, 32 )
 		net.Broadcast()
+
+		local textscreen = Entity( textscreenId )
 	end )
 end
 
@@ -110,10 +117,6 @@ function ENT:Initialize()
 			self:AddSolidFlags( FSOLID_CUSTOMBOXTEST )
 
 			self:CollisionRulesChanged()
-
-			if IsValid( self:GetParent() ) then
-				self:SetNotSolid( true )
-			end
 
 			self.PhysCollide = CreatePhysCollideBox( -self.boxSize * 0.5, self.boxSize * 0.5 )
 		end
