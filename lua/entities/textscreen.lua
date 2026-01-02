@@ -137,10 +137,8 @@ end
 if SERVER then
 	function ENT:OnDuplicated( data )
 		net.Start( "SetTextscreenText" )
-		net.WritePlayer( self:GetNWEntity( "owner" ) )
 		net.WriteString( data.text )
 		net.WriteInt( self:EntIndex(), 32 )
-		net.WriteBool( true )
 		net.Broadcast()
 
 		self:GetNWEntity( "owner" ):AddCount( "textscreen", self )
