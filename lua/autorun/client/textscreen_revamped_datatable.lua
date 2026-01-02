@@ -101,3 +101,5 @@ TEXTSCREEN_REVAMPED.DEFAULT_PRESETS = {
         }
     }
 }
+
+TEXTSCREEN_REVAMPED.DOMPurify = include( "includes/purify.lua" )

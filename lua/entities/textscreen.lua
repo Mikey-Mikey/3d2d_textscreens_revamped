@@ -10,6 +10,7 @@ ENT.RenderGroup = RENDERGROUP_TRANSLUCENT
 ENT.AutomaticFrameAdvance = true
 
 AddCSLuaFile( "includes/3d2dvgui.lua" )
+AddCSLuaFile( "includes/purify.lua" )
 
 if CLIENT then
 	include( "includes/3d2dvgui.lua" )
@@ -320,11 +321,13 @@ if CLIENT then
 					}
 					*/
 				</style>
-				<script type="text/javascript" src="asset://garrysmod/resource/purify.min.js"></script>
 			</head>
 			<body>
 				<div class="container" id="main">
 		]]
+
+		self.htmlPanel:QueueJavascript( TEXTSCREEN_REVAMPED.DOMPurify )
+
 		local txt = self.text
 
 		txt = string.Replace( txt, ">\n", ">" ) -- Remove line breaks right after tags
