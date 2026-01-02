@@ -136,21 +136,22 @@ function TOOL:LeftClick( trace )
 	return true
 end
 
+
 function TOOL:Reload()
 	if CLIENT then return true end
 
 	if not self:GetOwner():CheckLimit( "revamped_textscreens" ) then return true end
-
-	if CPPI and self:GetClientBool( "should_parent" ) and IsValid( trace.Entity ) then
-		local traceEnt = trace.Entity
-		if not traceEnt:CPPICanTool( self:GetOwner() ) then return false end
-	end
 
 	local trace = util.TraceLine( {
 		start = self:GetOwner():GetShootPos(),
 		endpos = self:GetOwner():GetShootPos() + self:GetOwner():GetAimVector() * 100,
 		filter = self:GetOwner()
 	} )
+
+	if CPPI and self:GetClientBool( "should_parent" ) and IsValid( trace.Entity ) then -- TODO: PUSH THIS
+		local traceEnt = trace.Entity
+		if not traceEnt:CPPICanTool( self:GetOwner() ) then return false end
+	end
 
 	local placeAng = trace.Normal:Angle()
 
@@ -184,7 +185,6 @@ function TOOL:Reload()
 	net.Send( self:GetOwner() )
 
 	if self:GetClientBool( "should_parent" ) and IsValid( trace.Entity ) then
-		ent.parent = trace.Entity 
 		ent:SetParent( trace.Entity )
 	end
 
