@@ -64,7 +64,7 @@ end
 
 if SERVER then
 	local function SpawnTextscreen( ply, data )
-		local ent = ents.Create( "textscreen" ) --duplicator.GenericDuplicatorFunction( ply, data )
+		local ent = ents.Create( "revamped_textscreen" ) --duplicator.GenericDuplicatorFunction( ply, data )
 		ent.boxSize = data.Mins - data.Maxs
 		ent.text = data.text
 		ent:SetPos( data.Pos )
@@ -74,13 +74,13 @@ if SERVER then
 
 		return ent
 	end
-	duplicator.RegisterEntityClass( "textscreen", SpawnTextscreen, "Data" )
+	duplicator.RegisterEntityClass( "revamped_textscreen", SpawnTextscreen, "Data" )
 end
 
 function TOOL:LeftClick( trace )
 	if CLIENT then return true end
 
-	if not self:GetOwner():CheckLimit( "textscreens" ) then return true end
+	if not self:GetOwner():CheckLimit( "revamped_textscreens" ) then return true end
 
 	if CPPI and self:GetClientBool( "should_parent" ) and IsValid( trace.Entity ) then
 		local traceEnt = trace.Entity
@@ -101,7 +101,7 @@ function TOOL:LeftClick( trace )
 		end
 	end
 
-	local ent = ents.Create( "textscreen" )
+	local ent = ents.Create( "revamped_textscreen" )
 	ent:SetPos( trace.HitPos + trace.HitNormal * 1 )
 	ent:SetAngles( placeAng )
 	ent:SetNWEntity( "owner", self:GetOwner() )
@@ -113,14 +113,7 @@ function TOOL:LeftClick( trace )
 	end
 
 	if not IsValid( ent ) then return end
-	--[[
-	net.Start( "SetTextscreenText" )
-	net.WritePlayer( self:GetOwner() )
-	net.WriteString( "" )
-	net.WriteInt( ent:EntIndex(), 32 )
-	net.WriteBool( false )
-	net.Broadcast()
-	]]
+
 	net.Start( "InitTextscreenText" )
 	net.WriteInt( ent:EntIndex(), 32 )
 	net.Send( self:GetOwner() )
@@ -134,7 +127,7 @@ function TOOL:LeftClick( trace )
 	undo.AddEntity( ent )
 	undo.Finish()
 
-	self:GetOwner():AddCount( "textscreens", ent )
+	self:GetOwner():AddCount( "revamped_textscreens", ent )
 
 	return true
 end
@@ -142,7 +135,7 @@ end
 function TOOL:Reload()
 	if CLIENT then return true end
 
-	if not self:GetOwner():CheckLimit( "textscreens" ) then return true end
+	if not self:GetOwner():CheckLimit( "revamped_textscreens" ) then return true end
 
 	if CPPI and self:GetClientBool( "should_parent" ) and IsValid( trace.Entity ) then
 		local traceEnt = trace.Entity
@@ -169,7 +162,7 @@ function TOOL:Reload()
 		end
 	end
 
-	local ent = ents.Create( "textscreen" )
+	local ent = ents.Create( "revamped_textscreen" )
 	ent:SetPos( trace.HitPos )
 	ent:SetAngles( placeAng )
 	ent:SetNWEntity( "owner", self:GetOwner() )
@@ -182,11 +175,9 @@ function TOOL:Reload()
 
 	if not IsValid( ent ) then return end
 
-	net.Start( "SetTextscreenText" )
-	net.WritePlayer( self:GetOwner() )
-	net.WriteString( "" )
+	net.Start( "InitTextscreenText" )
 	net.WriteInt( ent:EntIndex(), 32 )
-	net.Broadcast()
+	net.Send( self:GetOwner() )
 
 	if self:GetClientBool( "should_parent" ) and IsValid( trace.Entity ) then
 		ent:SetParent( trace.Entity )
@@ -197,14 +188,14 @@ function TOOL:Reload()
 	undo.AddEntity( ent )
 	undo.Finish()
 
-	self:GetOwner():AddCount( "textscreens", ent )
+	self:GetOwner():AddCount( "revamped_textscreens", ent )
 
 	return true
 end
 
 function TOOL:RightClick( trace )
 	if CLIENT then
-		return IsValid( trace.Entity ) and trace.Entity:GetClass() == "textscreen"
+		return IsValid( trace.Entity ) and trace.Entity:GetClass() == "revamped_textscreen"
 	end
 	local ent = trace.Entity
 
@@ -213,12 +204,10 @@ function TOOL:RightClick( trace )
 		if not traceEnt:CPPICanTool( self:GetOwner() ) then return false end
 	end
 
-	if IsValid( ent ) and ent:GetClass() == "textscreen" then
-		net.Start( "SetTextscreenText" )
-		net.WritePlayer( self:GetOwner() )
-		net.WriteString( "" )
+	if IsValid( ent ) and ent:GetClass() == "revamped_textscreen" then
+		net.Start( "InitTextscreenText" )
 		net.WriteInt( ent:EntIndex(), 32 )
-		net.Broadcast()
+		net.Send( self:GetOwner() )
 
 		return true
 	end
@@ -725,7 +714,7 @@ if CLIENT then
 		LocalPlayer().textscreen_revamped = LocalPlayer().textscreen_revamped or {}
 		LocalPlayer().textscreen_revamped.currentTextScreenText = LocalPlayer().textscreen_revamped.currentTextScreenText or ""
 
-		local textscreens = ents.FindByClass( "textscreen" )
+		local textscreens = ents.FindByClass( "revamped_textscreen" )
 		for _, textscreen in pairs( textscreens ) do
 			net.Start( "RetrieveTextscreenText" )
 			net.WritePlayer( LocalPlayer() )
