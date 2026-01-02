@@ -4,7 +4,6 @@ TEXTSCREEN_REVAMPED.FONTS = {
     -- These are custom fonts
     "Coolvetica",
     "Oxanium",
-    "Roboto",
     "Segment",
     "Spicy Sale",
 

@@ -246,10 +246,6 @@ if CLIENT then
 						src: url('asset://garrysmod/resource/fonts/Oxanium.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
 					}
 					@font-face {
-						font-family: 'Roboto'; /* The name you will use in CSS */
-						src: url('asset://garrysmod/resource/fonts/Roboto.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
-					}
-					@font-face {
 						font-family: 'Segment'; /* The name you will use in CSS */
 						src: url('asset://garrysmod/resource/fonts/Segment.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
 					}
@@ -306,23 +302,25 @@ if CLIENT then
 							calc( max( 0.01, max( 0, var( --shadow-y ) ) * 0.2 ) * 1em + var(--shadow-blur) * 0.2em )
 							calc( max( 0.01, max( 0, var( --shadow-x ) * -1 ) * 0.2 ) * 1em + var(--shadow-blur) * 0.2em );
 						padding: 0;
+						font-weight: var(--weight);
 						font-family: var(--font);
 						font-size: calc( var(--size) * 1em );
 						font-style: var(--font-style);
-						font-variation-settings: "wght" var( --weight );
-						-webkit-text-stroke: calc( var( --stroke ) * ( var( --size ) / 6 ) * 2px + 4px * var( --size ) / 6 ) var( --stroke-color );
 						filter: drop-shadow(calc( var( --shadow-x ) * 0.2em ) calc( var( --shadow-y ) * 0.2em ) calc( var( --shadow-blur ) * 0.1em ) var( --shadow-color ));
-
+						-webkit-text-stroke: calc( var( --stroke ) * ( var( --size ) / 6 ) * 1px + 2px * var( --size ) / 6 ) var( --stroke-color );
 					}
-					text::before {
-						white-space: pre-wrap;
+					/*
+					text::after {
 						display: block;
 						content: var(--text-data);
+						
 						position: absolute;
+						top: 0;
 						left: 0;
-						-webkit-text-stroke-color: #0000;
-						font-size: 1em;
+						-webkit-text-stroke: calc( var( --stroke ) * ( var( --size ) / 6 ) * 2px + 4px * var( --size ) / 6 ) var( --stroke-color );
+						z-index: -1;
 					}
+					*/
 				</style>
 				<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.7/purify.min.js"></script>
 			</head>
