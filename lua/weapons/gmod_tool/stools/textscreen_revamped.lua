@@ -18,12 +18,16 @@ if CLIENT then
 		{
 			name = "right"
 		},
+		{
+			name = "reload"
+		},
 	}
 
 	language.Add( "tool.textscreen_revamped.name", "Text Screen Revamped" )
 	language.Add( "tool.textscreen_revamped.desc", "Creates a text screen." )
 	language.Add( "tool.textscreen_revamped.left", "Create a Text Screen." )
 	language.Add( "tool.textscreen_revamped.right", "Update a Text Screen." )
+	language.Add( "tool.textscreen_revamped.reload", "Create a Text Screen In The Air." )
 
 	net.Receive( "SetTextscreenText", function()
 		local txt = net.ReadString()
@@ -148,7 +152,7 @@ function TOOL:Reload()
 		filter = self:GetOwner()
 	} )
 
-	if CPPI and self:GetClientBool( "should_parent" ) and IsValid( trace.Entity ) then -- TODO: PUSH THIS
+	if CPPI and self:GetClientBool( "should_parent" ) and IsValid( trace.Entity ) then
 		local traceEnt = trace.Entity
 		if not traceEnt:CPPICanTool( self:GetOwner() ) then return false end
 	end
