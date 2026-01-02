@@ -326,6 +326,7 @@ if CLIENT then
 				<text style="
 				--font: %s;
 				--size: %s;
+				--style: %s;
 				--weight: %s;
 				--color: %s;
 				--stroke: %s;
@@ -338,7 +339,8 @@ if CLIENT then
 				">%s</text>]], 
 				entry.effectData.font, 
 				entry.effectData.size, 
-				entry.effectData.weight, 
+				entry.effectData.style,
+				entry.effectData.weight,
 				entry.effectData.color:ToHex(),
 				entry.effectData.stroke,
 				entry.effectData.strokeColor:ToHex(),
@@ -377,7 +379,8 @@ if CLIENT then
 			effectData = {
 				font = effectData.font or "Coolvetica",
 				size = effectData.size or 6,
-				weight = effectData.weight or 400,
+				style = effectData.style or "regular",
+				weight = effectData.weight or "regular",
 				color = TableToColor( effectData.color ) or Color( 255, 255, 255, 255 ),
 				stroke = effectData.stroke or 1,
 				strokeColor = TableToColor( effectData.strokeColor ) or Color( 0, 0, 0, 255 ),
@@ -483,7 +486,7 @@ if CLIENT then
 				textSheet.entries[panel.lineId].effectData.size = value
 				updateCurrentText()
 			end
-
+			--[[
 			local weightControl = vgui.Create( "DNumSlider", panel )
 			weightControl:SetTall( 20 )
 			weightControl:SetText( "Weight" )
@@ -500,6 +503,30 @@ if CLIENT then
 				textSheet.entries[panel.lineId].effectData.weight = value
 				updateCurrentText()
 			end
+			]]
+
+			local styleControl = vgui.Create( "DListView", panel )
+			styleControl:SetMultiSelect( false )
+			styleControl:SetSortable( false )
+			styleControl:SetTall( 100 )
+			styleControl:DockMargin( 5, 5, 5, 5 )
+			styleControl:Dock( TOP )
+			styleControl:SetZPos( orderIndex )
+			orderIndex = orderIndex + 1
+
+			styleControl:AddColumn( "Style" )
+			styleControl:AddColumn( "Weight" )
+
+			for _, style in pairs( TEXTSCREEN_REVAMPED.STYLES ) do
+				styleControl:AddLine( style.style, style.weight )
+			end
+
+			function styleControl:OnRowSelected( index, line )
+				textSheet.entries[panel.lineId].effectData.style = line:GetValue( 1 )
+				textSheet.entries[panel.lineId].effectData.weight = line:GetValue( 2 )
+				updateCurrentText()
+			end
+
 
 			local colorControl = vgui.Create( "DColorMixer", panel )
 			colorControl:SetSize( 200, 160 )

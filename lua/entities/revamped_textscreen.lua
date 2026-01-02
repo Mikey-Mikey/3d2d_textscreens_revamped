@@ -265,7 +265,7 @@ if CLIENT then
 						--font: 'Arial';
 						--size: 6;
 						--weight: 400;
-						--font-style: none;
+						--style: none;
 						--color: rgb(255, 255, 255);
 						--shadow-color: rgba( 0, 0, 0, 0.0 );
 						--shadow-blur: 1;
@@ -307,9 +307,9 @@ if CLIENT then
 						font-weight: var(--weight);
 						font-family: var(--font);
 						font-size: calc( var(--size) * 1em );
-						font-style: var(--font-style);
+						font-style: var(--style);
 						filter: drop-shadow(calc( var( --shadow-x ) * 0.2em ) calc( var( --shadow-y ) * 0.2em ) calc( var( --shadow-blur ) * 0.1em ) var( --shadow-color ));
-						-webkit-text-stroke: calc( var( --stroke ) * ( var( --size ) / 6 ) * 1px + 2px * var( --size ) / 6 ) var( --stroke-color );
+						-webkit-text-stroke: calc( var( --stroke ) * ( var( --size ) / 6 ) * 3px ) var( --stroke-color );
 					}
 					/*
 					text::after {

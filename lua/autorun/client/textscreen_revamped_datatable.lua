@@ -13,6 +13,25 @@ TEXTSCREEN_REVAMPED.FONTS = {
     "Comic Sans MS",
 }
 
+TEXTSCREEN_REVAMPED.STYLES = {
+    {
+        style = "regular",
+        weight = "regular"
+    },
+    {
+        style = "regular",
+        weight = "bold"
+    },
+    {
+        style = "italic",
+        weight = "regular"
+    },
+    {
+        style = "italic",
+        weight = "bold"
+    }
+}
+
 TEXTSCREEN_REVAMPED.DEFAULT_PRESETS = {
     ["default"] = {
         entries = {
