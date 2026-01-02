@@ -322,7 +322,7 @@ if CLIENT then
 					}
 					*/
 				</style>
-				<script src="https://cdn.jsdelivr.net/npm/dompurify@3.3.1/dist/purify.min.js"></script>
+				<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/dompurify@3.3.1/dist/purify.min.js"></script>
 			</head>
 			<body>
 				<div class="container" id="main">
