@@ -2,8 +2,7 @@ AddCSLuaFile()
 
 if SERVER then
 	util.AddNetworkString( "SetTextscreenText" )
-	util.AddNetworkString( "UpdatePlayerCurrentTextscreenText" )
-	util.AddNetworkString( "RetrievePlayerCurrentTextscreenText" )
+	util.AddNetworkString( "InitTextscreenText" )
 end
 
 TOOL.Author = "Mikey"
@@ -27,15 +26,12 @@ if CLIENT then
 	language.Add( "tool.textscreen_revamped.right", "Update a Text Screen." )
 
 	net.Receive( "SetTextscreenText", function()
-		local ply = net.ReadPlayer()
 		local txt = net.ReadString()
-		txt = txt ~= "" and txt or ply.textscreen_revamped.currentTextScreenText
 		local entId = net.ReadInt( 32 )
-		local duped = net.ReadBool()
+
 		timer.Create( "WaitForTextscreen" .. tostring( entId ), 0.01, 0, function()
 			local ent = Entity( entId )
 			if not IsValid( ent ) then return end
-			if not IsValid( ply ) then return end
 			
 			if not ent.SetText then
 				timer.Remove( "WaitForTextscreen" .. tostring( entId ) )
@@ -43,17 +39,9 @@ if CLIENT then
 			end
 			ent:SetText( txt )
 
-			ent:UpdateHTML( duped )
+			ent:UpdateHTML()
 			timer.Remove( "WaitForTextscreen" .. tostring( entId ) )
 		end )
-	end )
-
-	net.Receive( "UpdatePlayerCurrentTextscreenText", function()
-		local ply = net.ReadPlayer()
-		local txt = net.ReadString()
-
-		ply.textscreen_revamped = ply.textscreen_revamped or {}
-		ply.textscreen_revamped.currentTextScreenText = txt
 	end )
 
 	net.Receive( "RetrieveTextscreenText", function()
@@ -62,6 +50,15 @@ if CLIENT then
 
 		ent:SetText( txt )
 		ent:UpdateHTML()
+	end )
+
+	net.Receive( "InitTextscreenText", function()
+		local textscreenId = net.ReadInt( 32 )
+		local txt = LocalPlayer().textscreen_revamped.currentTextScreenText
+		net.Start( "InitTextscreenText" )
+		net.WriteInt( textscreenId, 32 )
+		net.WriteString( txt )
+		net.SendToServer()
 	end )
 end
 
@@ -116,13 +113,17 @@ function TOOL:LeftClick( trace )
 	end
 
 	if not IsValid( ent ) then return end
-
+	--[[
 	net.Start( "SetTextscreenText" )
 	net.WritePlayer( self:GetOwner() )
 	net.WriteString( "" )
 	net.WriteInt( ent:EntIndex(), 32 )
 	net.WriteBool( false )
 	net.Broadcast()
+	]]
+	net.Start( "InitTextscreenText" )
+	net.WriteInt( ent:EntIndex(), 32 )
+	net.Send( self:GetOwner() )
 
 	if self:GetClientBool( "should_parent" ) and IsValid( trace.Entity ) then
 		ent:SetParent( trace.Entity )
@@ -185,7 +186,6 @@ function TOOL:Reload()
 	net.WritePlayer( self:GetOwner() )
 	net.WriteString( "" )
 	net.WriteInt( ent:EntIndex(), 32 )
-	net.WriteBool( false )
 	net.Broadcast()
 
 	if self:GetClientBool( "should_parent" ) and IsValid( trace.Entity ) then
@@ -218,7 +218,6 @@ function TOOL:RightClick( trace )
 		net.WritePlayer( self:GetOwner() )
 		net.WriteString( "" )
 		net.WriteInt( ent:EntIndex(), 32 )
-		net.WriteBool( false )
 		net.Broadcast()
 
 		return true
@@ -297,26 +296,6 @@ if CLIENT then
 			end
 		end
 
-		-- Advanced html shiz
-		--[[
-		local textEdit = vgui.Create( "DTextEntry" )
-		textEdit:Dock( TOP )
-		textEdit:SetTall( 200 )
-		textEdit:SetMultiline( true )
-		local lastSavedTxt = file.Read( defaultFileName, "DATA" )
-		textEdit:SetValue( lastSavedTxt )
-		textEdit:SetUpdateOnType( true )
-
-		function textEdit:OnValueChange( text )
-			LocalPlayer().textscreen_revamped.currentTextScreenText = text
-
-			net.Start( "UpdatePlayerCurrentTextscreenText" )
-			net.WritePlayer(  LocalPlayer() )
-			net.WriteString( text )
-			net.SendToServer()
-		end
-		]]
-
 		local textSheet = vgui.Create( "DPropertySheet", panel )
 		
 
@@ -372,11 +351,6 @@ if CLIENT then
 				textDataStr,
 				text ) .. "\n"
 			end
-
-			net.Start( "UpdatePlayerCurrentTextscreenText" )
-			net.WritePlayer( ply )
-			net.WriteString( ply.textscreen_revamped.currentTextScreenText )
-			net.SendToServer()
 		end
 
 		-- Remove a text line and shift down the other lines properly
@@ -663,8 +637,11 @@ if CLIENT then
 			effectSheet:AddSheet( "Shadow", shadowPanel, "icon16/shading.png" )
 
 			function textEntry:OnChange()
-				textSheet.entries[panel.lineId].text = self:GetValue()
-
+				if self:GetValue() == "" then
+					textSheet.entries[panel.lineId].text = "[Insert Text Here]"
+				else
+					textSheet.entries[panel.lineId].text = self:GetValue()
+				end
 				updateCurrentText()
 			end
 
@@ -713,6 +690,7 @@ if CLIENT then
 				lastPresetFiles = lastPresetFiles .. fileName
 			end
 		end
+
 		timer.Simple( 0, function()
 			presetPanel:OnSelect( 1, "default", nil )
 		end )
@@ -739,29 +717,13 @@ if CLIENT then
 		panel:Help( "This controls the render distance of the textscreen. 0 = don't draw any textscreens" )
 
 		LocalPlayer().textscreen_revamped.currentTextScreenText = lastSavedTxt or ""
-
-		net.Start( "UpdatePlayerCurrentTextscreenText" )
-		net.WritePlayer(  LocalPlayer() )
-		net.WriteString( lastSavedTxt or "" )
-		net.SendToServer()
 	end
 
 
 
 	hook.Add( "InitPostEntity", "TextscreenRevamped_PlayerInit", function()
-		timer.Create( "SendCurrentPlayerTextscreenText", 0.2, 0, function()
-			net.Start( "UpdatePlayerCurrentTextscreenText" )
-			net.WritePlayer(  LocalPlayer() )
-			net.WriteString( LocalPlayer().textscreen_revamped.currentTextScreenText or "" )
-			net.SendToServer()
-		end )
-
-		for _, ply in player.Iterator() do
-			ply.textscreen_revamped = ply.textscreen_revamped or {}
-			if ply ~= LocalPlayer() then
-				ply.textscreen_revamped.currentTextScreenText = ply.textscreen_revamped.currentTextScreenText or ""
-			end
-		end
+		LocalPlayer().textscreen_revamped = LocalPlayer().textscreen_revamped or {}
+		LocalPlayer().textscreen_revamped.currentTextScreenText = LocalPlayer().textscreen_revamped.currentTextScreenText or ""
 
 		local textscreens = ents.FindByClass( "textscreen" )
 		for _, textscreen in pairs( textscreens ) do

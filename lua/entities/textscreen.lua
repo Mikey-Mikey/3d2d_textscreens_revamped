@@ -24,7 +24,7 @@ else
 
 	CreateConVar( "sbox_maxtextscreens", 10, { FCVAR_NOTIFY }, "Maximum textscreens a single player can create" )
 
-	function SetTextscreenText( textscreen, width, height, duped )
+	function SetTextscreenText( textscreen, width, height )
 		if not IsValid( textscreen ) then return end
 		
 		local scale = Vector( 0.5, width, height )
@@ -54,37 +54,38 @@ else
 		
 	end
 
-	net.Receive( "UpdatePlayerCurrentTextscreenText", function()
-		local ply = net.ReadPlayer()
-		local txt = net.ReadString()
-
-		net.Start("UpdatePlayerCurrentTextscreenText")
-		net.WritePlayer( ply )
-		net.WriteString( txt )
-		net.Broadcast()
-	end )
-
 	-- This is used to scale the textscreen physics based on the text length
 	net.Receive( "SetTextscreenText", function()
 		local textscreen = net.ReadEntity()
 		local w = net.ReadFloat()
 		local h = net.ReadFloat()
 		local txt = net.ReadString()
-		local duped = net.ReadBool()
+		txt = txt ~= "" and txt or "[Insert Text Here]"
 
 		textscreen.text = txt
 
-		SetTextscreenText( textscreen, w, h, duped )
+		SetTextscreenText( textscreen, w, h )
 	end )
 
 	net.Receive( "RetrieveTextscreenText", function()
 		local ply = net.ReadPlayer()
 		local textscreen = net.ReadEntity()
 		local txt = textscreen.text
+		txt = txt ~= "" and txt or "[Insert Text Here]"
 		net.Start( "RetrieveTextscreenText" )
 		net.WriteEntity( textscreen )
 		net.WriteString( txt )
 		net.Send( ply )
+	end )
+
+	net.Receive( "InitTextscreenText", function()
+		local textscreenId = net.ReadInt( 32 )
+		local txt = net.ReadString()
+		txt = txt ~= "" and txt or "[Insert Text Here]"
+		net.Start( "SetTextscreenText" )
+		net.WriteString( txt )
+		net.WriteInt( textscreenId, 32 )
+		net.Broadcast()
 	end )
 end
 
@@ -224,7 +225,7 @@ if CLIENT then
 		self.PhysCollide:Destroy()
 	end
 
-	function ENT:UpdateHTML( duped )
+	function ENT:UpdateHTML()
 		if self.htmlPanel ~= nil then
 			self.htmlPanel:Remove()
 		end
@@ -362,15 +363,13 @@ if CLIENT then
 			self:SetSize( Vector( w, h, 0 ) )
 
 			if LocalPlayer() ~= self:GetNWEntity( "owner" ) then return end
-			if not duped then
-				net.Start( "SetTextscreenText" )
-				net.WriteEntity( self )
-				net.WriteFloat( scale[2] )
-				net.WriteFloat( scale[3] )
-				net.WriteString( self.text )
-				net.WriteBool( duped )
-				net.SendToServer()
-			end
+			net.Start( "SetTextscreenText" )
+			net.WriteEntity( self )
+			net.WriteFloat( scale[2] )
+			net.WriteFloat( scale[3] )
+			net.WriteString( self.text )
+			net.WriteBool( duped )
+			net.SendToServer()
 		end )
 
 		self.htmlPanel:QueueJavascript( [[
