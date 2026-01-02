@@ -69,6 +69,7 @@ if SERVER then
 	local function SpawnTextscreen( ply, data )
 		local ent = ents.Create( "textscreen" ) --duplicator.GenericDuplicatorFunction( ply, data )
 		ent.boxSize = data.Mins - data.Maxs
+		ent.text = data.text
 		ent:SetPos( data.Pos )
 		ent:SetAngles( data.Angle )
 		ent:SetNWEntity( "owner", ply )

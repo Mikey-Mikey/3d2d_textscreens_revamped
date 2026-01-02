@@ -128,7 +128,7 @@ function ENT:Initialize()
 		self.modelColor = Color( 255, 0, 0, 5 )
 		self.sizeAnim = 0
 		self.shouldDraw = true
-		self.text = ""
+		self.text = self.text or ""
 	end
 	self:DrawShadow( false )
 end
