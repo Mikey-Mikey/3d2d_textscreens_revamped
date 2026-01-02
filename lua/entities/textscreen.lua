@@ -25,7 +25,7 @@ else
 	CreateConVar( "sbox_maxtextscreens", 10, { FCVAR_NOTIFY }, "Maximum textscreens a single player can create" )
 
 	function SetTextscreenText( textscreen, width, height )
-		if not IsValid( textscreen ) then return end
+		if not IsValid( textscreen ) or textscreen.boxSize then return end
 		
 		local scale = Vector( 0.5, width, height )
 
