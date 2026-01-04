@@ -744,8 +744,6 @@ if CLIENT then
 		LocalPlayer().textscreen_revamped.currentTextScreenText = lastSavedTxt or ""
 	end
 
-
-
 	hook.Add( "InitPostEntity", "TextscreenRevamped_PlayerInit", function()
 		LocalPlayer().textscreen_revamped = LocalPlayer().textscreen_revamped or {}
 		LocalPlayer().textscreen_revamped.currentTextScreenText = LocalPlayer().textscreen_revamped.currentTextScreenText or ""

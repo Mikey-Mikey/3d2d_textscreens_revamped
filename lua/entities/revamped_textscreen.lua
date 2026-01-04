@@ -68,6 +68,13 @@ else
 		local txt = net.ReadString()
 		txt = txt ~= "" and txt or "[Insert Text Here]"
 
+		local block = hook.Run( "RevampedTextscreen_CanCreate", textscreen:GetNWEntity( "owner" ), txt )
+		
+		if block then
+			SafeRemoveEntityDelayed( textscreen, 0 )
+			return
+		end
+
 		textscreen.text = txt
 
 		SetTextscreenText( textscreen, w, h )
@@ -102,6 +109,7 @@ function ENT:Initialize()
 		self:SetModel( "models/hunter/blocks/cube05x05x05.mdl" )
 		self:SetMaterial( "models/debug/debugwhite" )
 		self:SetRenderMode( RENDERMODE_TRANSCOLOR )
+		
 		if self.boxSize then
 			self:PhysicsInitBox( -self.boxSize * 0.5, self.boxSize * 0.5 )
 			self:SetCollisionBounds( -self.boxSize * 0.5, self.boxSize * 0.5 )
