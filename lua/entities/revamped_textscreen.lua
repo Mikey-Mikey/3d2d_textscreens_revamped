@@ -152,8 +152,6 @@ if SERVER then
 		net.WriteString( data.text )
 		net.WriteInt( self:EntIndex(), 32 )
 		net.Broadcast()
-
-		self:GetNWEntity( "owner" ):AddCount( "revamped_textscreen", self )
 	end
 end
 

@@ -68,6 +68,7 @@ end
 
 if SERVER then
 	local function SpawnTextscreen( ply, data )
+		if not ply:CheckLimit( "revamped_textscreens" ) then return end
 		local ent = ents.Create( "revamped_textscreen" ) --duplicator.GenericDuplicatorFunction( ply, data )
 		ent.boxSize = data.Mins - data.Maxs
 		ent.text = data.text
@@ -78,8 +79,11 @@ if SERVER then
 		ent:SetNWEntity( "owner", ply )
 		ent:Spawn()
 
+		ply:AddCount( "revamped_textscreens", ent )
+
 		return ent
 	end
+
 	duplicator.RegisterEntityClass( "revamped_textscreen", SpawnTextscreen, "Data" )
 end
 
@@ -111,6 +115,7 @@ function TOOL:LeftClick( trace )
 	ent:SetPos( trace.HitPos + trace.HitNormal * 1 )
 	ent:SetAngles( placeAng )
 	ent:SetNWEntity( "owner", self:GetOwner() )
+	ent.owner = self:GetOwner()
 
 	ent:Spawn()
 	ent:Activate()
