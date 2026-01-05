@@ -3,7 +3,11 @@ TEXTSCREEN_REVAMPED = TEXTSCREEN_REVAMPED or {}
 TEXTSCREEN_REVAMPED.FONTS = {
     -- These are custom fonts
     "Coolvetica",
+    "Game Box",
+    "Gas",
+    "Open Sans",
     "Oxanium",
+    "Pricedown",
     "Segment",
     "Spicy Sale",
 

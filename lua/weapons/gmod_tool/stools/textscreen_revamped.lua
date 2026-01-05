@@ -444,8 +444,13 @@ if CLIENT then
 
 			-- font dropdown
 			local fontControl = vgui.Create( "DComboBox", panel )
-			fontControl:DockMargin( 5, 5, 5, 5 )
+			fontControl:DockMargin( 50, 5, 5, 5 )
 			fontControl:Dock( TOP )
+			fontControl:InvalidateParent( true )
+
+			fontControl.label = vgui.Create( "DLabel", panel )
+			fontControl.label:SetText( "Font" )
+			fontControl.label:SetPos( fontControl:GetX() - 45, fontControl:GetY() )
 
 			for _, font in pairs( TEXTSCREEN_REVAMPED.FONTS ) do
 				fontControl:AddChoice( font )

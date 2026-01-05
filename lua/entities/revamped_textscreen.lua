@@ -241,26 +241,24 @@ if CLIENT then
 		self.htmlPanel = vgui.Create( "DHTML" )
 
 		self.htmlPanel:SetSize( 0, 0 )
-		local newHtml = [[
+		local newHtml = ""
+
+		newHtml = newHtml .. [[
 			<head>
 				<meta name="referrer" content="origin" />
 				<style>
-					@font-face {
-						font-family: 'Coolvetica'; /* The name you will use in CSS */
-						src: url('asset://garrysmod/resource/fonts/Coolvetica.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
-					}
-					@font-face {
-						font-family: 'Oxanium'; /* The name you will use in CSS */
-						src: url('asset://garrysmod/resource/fonts/Oxanium.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
-					}
-					@font-face {
-						font-family: 'Segment'; /* The name you will use in CSS */
-						src: url('asset://garrysmod/resource/fonts/Segment.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
-					}
-					@font-face {
-						font-family: 'Spicy Sale'; /* The name you will use in CSS */
-						src: url('asset://garrysmod/resource/fonts/Spicy Sale.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
-					}
+		]]
+
+		for i, fontName in ipairs( TEXTSCREEN_REVAMPED.FONTS ) do
+			newHtml = newHtml .. string.format([[
+				@font-face {
+					font-family: '%s'; /* The name you will use in CSS */
+					src: url('asset://garrysmod/resource/fonts/%s.ttf') format('truetype'); /* Path relative to the GMod root, using the file:// protocol */
+				}
+			]], fontName, fontName )
+		end
+
+		newHtml = newHtml .. [[
 					body {
 						background: transparent;
 						overflow: hidden;
