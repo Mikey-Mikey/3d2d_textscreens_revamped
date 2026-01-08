@@ -9,6 +9,7 @@ TOOL.Author = "Mikey"
 TOOL.Name = "#tool.textscreen_revamped.name"
 TOOL.Category = "Text Screens Revamped"
 TOOL.ClientConVar["should_parent"] = 1
+TOOL.ClientConVar["fullbright"] = 1
 
 if CLIENT then
 	TOOL.Information = {
@@ -31,6 +32,7 @@ if CLIENT then
 
 	net.Receive( "SetTextscreenText", function()
 		local txt = net.ReadString()
+		local fullbright = net.ReadBool()
 		local entId = net.ReadInt( 32 )
 
 		timer.Create( "WaitForTextscreen" .. tostring( entId ), 0.01, 0, function()
@@ -41,6 +43,9 @@ if CLIENT then
 				timer.Remove( "WaitForTextscreen" .. tostring( entId ) )
 				return
 			end
+
+			ent:SetFullbright( fullbright )
+
 			ent:SetText( txt )
 
 			ent:UpdateHTML()
@@ -51,6 +56,9 @@ if CLIENT then
 	net.Receive( "RetrieveTextscreenText", function()
 		local ent = net.ReadEntity()
 		local txt = net.ReadString()
+		local fullbright = net.ReadBool()
+
+		ent:SetFullbright( fullbright )
 
 		ent:SetText( txt )
 		ent:UpdateHTML()
@@ -59,9 +67,12 @@ if CLIENT then
 	net.Receive( "InitTextscreenText", function()
 		local textscreenId = net.ReadInt( 32 )
 		local txt = LocalPlayer().textscreen_revamped.currentTextScreenText
+		local fullbrightCVar = GetConVar( "textscreen_revamped_fullbright" )
+		local fullbright = fullbrightCVar:GetBool()
 		net.Start( "InitTextscreenText" )
 		net.WriteInt( textscreenId, 32 )
 		net.WriteString( txt )
+		net.WriteBool( fullbright )
 		net.SendToServer()
 	end )
 end
@@ -732,8 +743,11 @@ if CLIENT then
 
 		panel:AddItem( presetPanel )
 		panel:AddItem( textSheet )
-		panel:CheckBox( "Should Parent?", "textscreen_revamped_should_parent", false )
+		panel:CheckBox( "Should Parent?", "textscreen_revamped_should_parent" )
 		panel:Help( "This enables parenting to the entity you're looking at." )
+
+		panel:CheckBox( "Fullbright?", "textscreen_revamped_fullbright" )
+		panel:Help( "This enables fullbrighting the textscreen. ( glows in the dark. )" )
 
 		panel:CheckBox( "Show Textscreen Bounds?", "textscreen_show_bounds" )
 		panel:Help( "This enables rendering bounds when holding either the toolgun or physgun." )

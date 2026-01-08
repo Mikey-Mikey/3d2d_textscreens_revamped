@@ -17,11 +17,6 @@ if CLIENT then
 	language.Add("sboxlimit_revamped_textscreens", "You've hit the Textscreens limit!")
 else
 	util.AddNetworkString( "RetrieveTextscreenText" )
-	resource.AddSingleFile( "resource/fonts/Coolvetica.ttf" )
-	resource.AddSingleFile( "resource/fonts/Oxanium.ttf" )
-	resource.AddSingleFile( "resource/fonts/Roboto.ttf" )
-	resource.AddSingleFile( "resource/fonts/Segment.ttf" )
-	resource.AddSingleFile( "resource/fonts/Spicy Sale.ttf" )
 
 	CreateConVar( "sbox_maxrevamped_textscreens", 10, { FCVAR_NOTIFY }, "Maximum textscreens a single player can create" )
 
@@ -66,6 +61,7 @@ else
 		local w = net.ReadFloat()
 		local h = net.ReadFloat()
 		local txt = net.ReadString()
+		local fullbright = net.ReadBool()
 		txt = txt ~= "" and txt or "[Insert Text Here]"
 
 		local block = hook.Run( "RevampedTextscreen_CanCreate", textscreen:GetNWEntity( "owner" ), txt )
@@ -76,6 +72,7 @@ else
 		end
 
 		textscreen.text = txt
+		textscreen.fullbright = fullbright
 
 		SetTextscreenText( textscreen, w, h )
 	end )
@@ -84,19 +81,23 @@ else
 		local ply = net.ReadPlayer()
 		local textscreen = net.ReadEntity()
 		local txt = textscreen.text
+		local fullbright = textscreen.fullbright
 		txt = txt ~= "" and txt or "[Insert Text Here]"
 		net.Start( "RetrieveTextscreenText" )
 		net.WriteEntity( textscreen )
 		net.WriteString( txt )
+		net.WriteBool( fullbright )
 		net.Send( ply )
 	end )
 
 	net.Receive( "InitTextscreenText", function()
 		local textscreenId = net.ReadInt( 32 )
 		local txt = net.ReadString()
+		local fullbright = net.ReadBool()
 		txt = txt ~= "" and txt or "[Insert Text Here]"
 		net.Start( "SetTextscreenText" )
 		net.WriteString( txt )
+		net.WriteBool( fullbright )
 		net.WriteInt( textscreenId, 32 )
 		net.Broadcast()
 
@@ -142,6 +143,8 @@ function ENT:Initialize()
 		self.sizeAnim = 0
 		self.shouldDraw = true
 		self.text = self.text or ""
+		self.fullbright = self.fullbright == nil and false or self.fullbright
+		self.mesh = Mesh()
 	end
 	self:DrawShadow( false )
 end
@@ -150,6 +153,7 @@ if SERVER then
 	function ENT:OnDuplicated( data )
 		net.Start( "SetTextscreenText" )
 		net.WriteString( data.text )
+		net.WriteBool( data.fullbright )
 		net.WriteInt( self:EntIndex(), 32 )
 		net.Broadcast()
 	end
@@ -180,6 +184,10 @@ function ENT:TestCollision( startpos, delta, isbox, extents )
 end
 
 if CLIENT then
+	function ENT:SetFullbright( b )
+		self.fullbright = b
+	end
+
 	function ENT:SetSize( size )
 		self.size = size
 		self.htmlPanel:SetSize( self.size[1], self.size[2] )
@@ -203,16 +211,17 @@ if CLIENT then
 				physobj:SetPos( self:GetPos() )
 				physobj:SetAngles( self:GetAngles() )
 			end
-
-			if self.shouldDraw then
-				if self.sizeAnim <= 0 then
-					self:SetNoDraw( false )
-				end
-				self.sizeAnim = math.min( self.sizeAnim + FrameTime() * 2, 1 )
-			else
-				self.sizeAnim = math.max( 0, self.sizeAnim - FrameTime() * 2 )
-				if self.sizeAnim <= 0 then
-					self:SetNoDraw( not ( self:GetNWEntity( "owner" ) == LocalPlayer() and self.firstFrame ) )
+			if self.htmlPanel and self.htmlPanel:GetHTMLMaterial() then
+				if self.shouldDraw then
+					if self.sizeAnim <= 0 then
+						self:SetNoDraw( false )
+					end
+					self.sizeAnim = math.min( self.sizeAnim + FrameTime() * 2, 1 )
+				else
+					self.sizeAnim = math.max( 0, self.sizeAnim - FrameTime() * 2 )
+					if self.sizeAnim <= 0 then
+						self:SetNoDraw( not ( self:GetNWEntity( "owner" ) == LocalPlayer() and self.firstFrame ) )
+					end
 				end
 			end
 
@@ -312,7 +321,9 @@ if CLIENT then
 						font-family: var(--font);
 						font-size: calc( var(--size) * 1em );
 						font-style: var(--style);
-						filter: drop-shadow(calc( var( --shadow-x ) * 0.2em ) calc( var( --shadow-y ) * 0.2em ) calc( var( --shadow-blur ) * 0.1em ) var( --shadow-color ));
+						filter:
+							drop-shadow(calc( var( --shadow-x ) * 0.2em ) calc( var( --shadow-y ) * 0.2em ) calc( var( --shadow-blur ) * 0.1em ) var( --shadow-color ))
+							drop-shadow(calc( var( --shadow-x ) * 0.2em ) calc( var( --shadow-y ) * 0.2em ) calc( var( --shadow-blur ) * 0.1em ) var( --shadow-color ));
 						-webkit-text-stroke: calc( var( --stroke ) * ( var( --size ) / 6 ) * 3px ) var( --stroke-color );
 					}
 					/*
@@ -367,6 +378,9 @@ if CLIENT then
 			self:EnableMatrix( "RenderMultiply", sclMat )
 			self:SetRenderBounds( -scale, scale )
 			self:SetSize( Vector( w, h, 0 ) )
+			timer.Simple( 0.02, function()
+				self.meshUpdated = true
+			end )
 
 			if LocalPlayer() ~= self:GetNWEntity( "owner" ) then return end
 			net.Start( "SetTextscreenText" )
@@ -374,7 +388,7 @@ if CLIENT then
 			net.WriteFloat( scale[2] )
 			net.WriteFloat( scale[3] )
 			net.WriteString( self.text )
-			net.WriteBool( duped )
+			net.WriteBool( self.fullbright )
 			net.SendToServer()
 		end )
 
@@ -383,10 +397,13 @@ if CLIENT then
 			var rect = elem.getBoundingClientRect();
 			textscreen.resizeTextscreen( rect.width, rect.height );
 		]] )
+		--self.htmlPanel:SetPaintedManually( true )
 		self.htmlPanel:SetPaintedManually( true )
 	end
 
-	function ENT:Draw()
+	local debugwhite = Material( "debug/env_cubemap_model" )
+
+	function ENT:DrawModelOrMesh()
 		--[[
 		local renderDist = TEXTSCREEN_REVAMPED.RenderDistanceCVar:GetFloat() ^ 2
 		local eyeDist = EyePos():DistToSqr( self:GetPos() )
@@ -400,6 +417,8 @@ if CLIENT then
 		end
 
 		if self.size[1] <= 0 or self.size[2] <= 0 then return end
+
+		self.htmlPanel:UpdateHTMLTexture()
 
 		local renderCube = IsValid( LocalPlayer():GetActiveWeapon() ) and LocalPlayer():GetActiveWeapon():GetClass() == "gmod_tool"
 		renderCube = renderCube or IsValid( LocalPlayer():GetActiveWeapon() ) and LocalPlayer():GetActiveWeapon():GetClass() == "weapon_physgun"
@@ -426,33 +445,134 @@ if CLIENT then
 				true
 			)
 		end
+		
+		local htmlMat = self.htmlPanel:GetHTMLMaterial()
+	
+		if self.meshUpdated then
+			if htmlMat then
+				local matSclX, matSclY = htmlMat:Width() * self.pixelScale, htmlMat:Height() * self.pixelScale
+				local sclX, sclY = self.size[1] * self.pixelScale, self.size[2] * self.pixelScale--htmlMat:Width() * self.pixelScale, htmlMat:Height() * self.pixelScale
 
-		local scl = self.pixelScale * ( math.cos( math.pi + self.sizeAnim * math.pi ) * 0.5 + 0.5 )
+				local matdata = {
+					["$basetexture"] = htmlMat:GetName(),
+					["$translucent"] = 1,
+					--["$color"] = Vector( 1, 1, 1 ),
+					["$basetexturetransform"] = "center 0 0 scale " .. 1 / matSclX * sclX .. " " .. 1 / matSclY * sclY .. " rotate 0 translate 0 0",
+					["$model"] = 1
+				}
 
-		local mat = Matrix()
-		mat:Translate( self:WorldSpaceCenter() )
-		mat:Rotate( self:GetAngles() )
-		mat:Rotate( Angle( 0, 90, 90 ) )
-		mat:Translate( Vector( -self.size[1], self.size[2], 0 ) * 0.5 * scl )
+				self.mat = CreateMaterial( htmlMat:GetName() .. "_textscreen", self.fullbright and "UnlitGeneric" or "VertexLitGeneric", matdata )
 
-		vgui.Start3D2D( mat:GetTranslation(), mat:GetAngles(), scl )
-			self.htmlPanel:Paint3D2D()
-		vgui.End3D2D()
+				self.mesh = Mesh( self.mat )
+				mesh.Begin( self.mesh, MATERIAL_QUADS, 2 )
+					
+					mesh.Position( Vector( 0, -sclX, sclY ) * 0.5 )
+					mesh.TexCoord( 0, 0, 0 )
+					mesh.TangentS( 1, 0, 0 )
+					mesh.TangentT( 0, 1, 0 )
+					mesh.UserData( 1, 0, 0, 1 )
+					mesh.Normal( 1, 0, 0 )
+					mesh.Color( 255, 255, 255, 255 )
+					mesh.AdvanceVertex()
 
-		mat = Matrix()
-		mat:Translate( self:WorldSpaceCenter() )
-		mat:Rotate( self:GetAngles() )
-		mat:Rotate( Angle( 0, -90, 90 ) )
-		mat:Translate( Vector( -self.size[1], self.size[2], 0 ) * 0.5 * scl )
+					mesh.Position( Vector( 0, sclX, sclY ) * 0.5 )
+					mesh.TexCoord( 0, 1, 0 )
+					mesh.TangentS( 1, 0, 0 )
+					mesh.TangentT( 0, 1, 0 )
+					mesh.UserData( 1, 0, 0, 1 )
+					mesh.Normal( 1, 0, 0 )
+					mesh.Color( 255, 255, 255, 255 )
+					mesh.AdvanceVertex()
 
-		local reverseMat = Matrix()
+					mesh.Position( Vector( 0, sclX, -sclY ) * 0.5 )
+					mesh.TexCoord( 0, 1, 1 )
+					mesh.TangentS( 1, 0, 0 )
+					mesh.TangentT( 0, 1, 0 )
+					mesh.UserData( 1, 0, 0, 1 )
+					mesh.Normal( 1, 0, 0 )
+					mesh.Color( 255, 255, 255, 255 )
+					mesh.AdvanceVertex()
 
-		reverseMat:SetScale( Vector( 1, 1, 1 ) )
+					mesh.Position( Vector( 0, -sclX, -sclY ) * 0.5 )
+					mesh.TexCoord( 0, 0, 1 )
+					mesh.TangentS( 1, 0, 0 )
+					mesh.TangentT( 0, 1, 0 )
+					mesh.UserData( 1, 0, 0, 1 )
+					mesh.Normal( 1, 0, 0 )
+					mesh.Color( 255, 255, 255, 255 )
+					mesh.AdvanceVertex()
 
-		vgui.Start3D2D( mat:GetTranslation(), mat:GetAngles(), scl )
-			self.htmlPanel:Paint3D2D()
-		vgui.End3D2D()
+					-- Back --
+
+					mesh.Position( Vector( 0, -sclX, -sclY ) * 0.5 )
+					mesh.TexCoord( 0, 0, 1 )
+					mesh.TangentS( 1, 0, 0 )
+					mesh.TangentT( 0, 1, 0 )
+					mesh.UserData( 1, 0, 0, 1 )
+					mesh.Normal( -1, 0, 0 )
+					mesh.Color( 255, 255, 255, 255 )
+					mesh.AdvanceVertex()
+
+					mesh.Position( Vector( 0, sclX, -sclY ) * 0.5 )
+					mesh.TexCoord( 0, 1, 1 )
+					mesh.TangentS( 1, 0, 0 )
+					mesh.TangentT( 0, 1, 0 )
+					mesh.UserData( 1, 0, 0, 1 )
+					mesh.Normal( -1, 0, 0 )
+					mesh.Color( 255, 255, 255, 255 )
+					mesh.AdvanceVertex()
+
+					mesh.Position( Vector( 0, sclX, sclY ) * 0.5 )
+					mesh.TexCoord( 0, 1, 0 )
+					mesh.TangentS( 1, 0, 0 )
+					mesh.TangentT( 0, 1, 0 )
+					mesh.UserData( 1, 0, 0, 1 )
+					mesh.Normal( -1, 0, 0 )
+					mesh.Color( 255, 255, 255, 255 )
+					mesh.AdvanceVertex()
+
+					mesh.Position( Vector( 0, -sclX, sclY ) * 0.5 )
+					mesh.TexCoord( 0, 0, 0 )
+					mesh.TangentS( 1, 0, 0 )
+					mesh.TangentT( 0, 1, 0 )
+					mesh.UserData( 1, 0, 0, 1 )
+					mesh.Normal( -1, 0, 0 )
+					mesh.Color( 255, 255, 255, 255 )
+					mesh.AdvanceVertex()
+					
+				mesh.End()
+				self.meshUpdated = false
+			end
+		end
+
+		if htmlMat then
+			local scl = 1 - ( math.cos( self.sizeAnim * math.pi ) * 0.5 + 0.5 )
+			local mat = Matrix()
+			mat:Translate( self:WorldSpaceCenter() )
+			mat:SetAngles( self:GetAngles() )
+			mat:SetScale( Vector( scl, scl, scl ) )
+			--mat:Translate( Vector( 0, htmlMat:Width(), -htmlMat:Height() ) * 0.5 * self.pixelScale )
+			--mat:Translate( Vector( 0, -self.size[1], self.size[2] ) * 0.5 * self.pixelScale )
+			render.PushFilterMin( TEXFILTER.ANISOTROPIC )
+			render.PushFilterMag( TEXFILTER.ANISOTROPIC )
+
+			cam.PushModelMatrix( mat )
+				render.SetMaterial( self.mat or debugwhite )
+				self.mesh:Draw()
+			cam.PopModelMatrix()
+
+			render.PopFilterMin()
+			render.PopFilterMag()
+		end
 
 		self.firstFrame = false
+	end
+
+	function ENT:Draw()
+		render.SetBlend( 0 )
+		self:DrawModel()
+		render.SetBlend( 1 )
+		self:DrawModelOrMesh()
+		render.RenderFlashlights( function() self:DrawModelOrMesh() end )
 	end
 end
