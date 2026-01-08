@@ -1,6 +1,11 @@
 TEXTSCREEN_REVAMPED = TEXTSCREEN_REVAMPED or {}
 
 TEXTSCREEN_REVAMPED.FONTS = {
+    -- These are the default fonts 
+    "Arial",
+    "Times New Roman",
+    "Comic Sans MS",
+
     -- These are custom fonts
     "Coolvetica",
     "Game Box",
@@ -10,12 +15,14 @@ TEXTSCREEN_REVAMPED.FONTS = {
     "Pricedown",
     "Segment",
     "Spicy Sale",
-
-    -- These are the default fonts 
-    "Arial",
-    "Times New Roman",
-    "Comic Sans MS",
 }
+
+--- Adds a new font to the list of available fonts
+--- @param font string
+function TEXTSCREEN_REVAMPED.AddFont( font )
+    if table.HasValue( TEXTSCREEN_REVAMPED.FONTS, font ) then return end
+    table.insert( TEXTSCREEN_REVAMPED.FONTS, font )
+end
 
 TEXTSCREEN_REVAMPED.STYLES = {
     {
