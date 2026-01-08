@@ -1,6 +1,8 @@
 # Textscreens Revamped
 This repo contains all of the source code for the workshop addon.
 
+### [Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3636781154)
+
 ## Font Addition Example
 You can very easily add fonts using TEXTSCREEN_REVAMPED.AddFont()
 
