@@ -1,5 +1,16 @@
 AddCSLuaFile()
 
+function ToHex( color )
+    -- Ensure r, g, and b are integers between 0 and 255
+    local r = math.floor( color.r )
+    local g = math.floor( color.g )
+    local b = math.floor( color.b )
+
+    -- Use string.format to get the hex string
+    -- "%02X" formats each number as a two-digit uppercase hexadecimal with zero padding
+    return string.format("#%02X%02X%02X", r, g, b)
+end
+
 if SERVER then
 	util.AddNetworkString( "SetTextscreenText" )
 	util.AddNetworkString( "InitTextscreenText" )
@@ -357,11 +368,11 @@ if CLIENT then
 				entry.effectData.size, 
 				entry.effectData.style,
 				entry.effectData.weight,
-				entry.effectData.color and entry.effectData.color:ToHex() or "#FFFFFF",
+				entry.effectData.color and ToHex( entry.effectData.color ) or "#FFFFFF",
 				entry.effectData.stroke,
-				entry.effectData.strokeColor and entry.effectData.strokeColor:ToHex() or "#000000",
+				entry.effectData.strokeColor and ToHex( entry.effectData.strokeColor ) or "#000000",
 				entry.effectData.shadowBlur,
-				entry.effectData.shadowColor and entry.effectData.shadowColor:ToHex() or "#000000",
+				entry.effectData.shadowColor and ToHex( entry.effectData.shadowColor ) or "#000000",
 				entry.effectData.shadowOffset[1],
 				entry.effectData.shadowOffset[2],
 				textDataStr,

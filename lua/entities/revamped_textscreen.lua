@@ -211,7 +211,7 @@ if CLIENT then
 				physobj:SetPos( self:GetPos() )
 				physobj:SetAngles( self:GetAngles() )
 			end
-			if self.htmlPanel and self.htmlPanel:GetHTMLMaterial() then
+			if IsValid( self.htmlPanel ) and self.htmlPanel:GetHTMLMaterial() then
 				if self.shouldDraw then
 					if self.sizeAnim <= 0 then
 						self:SetNoDraw( false )
@@ -243,7 +243,7 @@ if CLIENT then
 	end
 
 	function ENT:UpdateHTML()
-		if self.htmlPanel ~= nil then
+		if IsValid( self.htmlPanel ) then
 			self.htmlPanel:Remove()
 		end
 
@@ -412,7 +412,7 @@ if CLIENT then
 			return
 		end
 		]]
-		if self.htmlPanel == nil and self.text ~= "" then
+		if not IsValid( self.htmlPanel ) and self.text ~= "" then
 			self:UpdateHTML()
 		end
 
