@@ -14,6 +14,7 @@ end
 if SERVER then
 	util.AddNetworkString( "SetTextscreenText" )
 	util.AddNetworkString( "InitTextscreenText" )
+	resource.AddWorkshop( "3636781154" )
 end
 
 TOOL.Author = "Mikey"
