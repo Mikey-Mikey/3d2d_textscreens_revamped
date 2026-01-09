@@ -5,10 +5,11 @@ function ToHex( color )
     local r = math.floor( color.r )
     local g = math.floor( color.g )
     local b = math.floor( color.b )
+    local a = math.floor( color.a )
 
     -- Use string.format to get the hex string
     -- "%02X" formats each number as a two-digit uppercase hexadecimal with zero padding
-    return string.format("#%02X%02X%02X", r, g, b)
+    return string.format( "#%02X%02X%02X%02X", r, g, b, a )
 end
 
 if SERVER then
