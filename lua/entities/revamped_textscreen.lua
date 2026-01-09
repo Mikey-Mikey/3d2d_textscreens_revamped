@@ -321,23 +321,12 @@ if CLIENT then
 						font-family: var(--font);
 						font-size: calc( var(--size) * 1em );
 						font-style: var(--style);
-						filter:
-							drop-shadow(calc( var( --shadow-x ) * 0.2em ) calc( var( --shadow-y ) * 0.2em ) calc( var( --shadow-blur ) * 0.1em ) var( --shadow-color ))
-							drop-shadow(calc( var( --shadow-x ) * 0.2em ) calc( var( --shadow-y ) * 0.2em ) calc( var( --shadow-blur ) * 0.1em ) var( --shadow-color ));
+						text-shadow:
+							calc( var( --shadow-x ) * 0.2em ) calc( var( --shadow-y ) * 0.2em ) calc( var( --shadow-blur ) * 0.1em ) var( --shadow-color ),
+							calc( var( --shadow-x ) * 0.2em ) calc( var( --shadow-y ) * 0.2em ) calc( var( --shadow-blur ) * 0.1em ) var( --shadow-color ),
+							calc( var( --shadow-x ) * 0.2em ) calc( var( --shadow-y ) * 0.2em ) calc( var( --shadow-blur ) * 0.1em ) var( --shadow-color );
 						-webkit-text-stroke: calc( var( --stroke ) * ( var( --size ) / 6 ) * 3px ) var( --stroke-color );
 					}
-					/*
-					text::after {
-						display: block;
-						content: var(--text-data);
-						
-						position: absolute;
-						top: 0;
-						left: 0;
-						-webkit-text-stroke: calc( var( --stroke ) * ( var( --size ) / 6 ) * 2px + 4px * var( --size ) / 6 ) var( --stroke-color );
-						z-index: -1;
-					}
-					*/
 				</style>
 			</head>
 			<body>
