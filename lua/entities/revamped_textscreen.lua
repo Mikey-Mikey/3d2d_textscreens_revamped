@@ -78,6 +78,7 @@ else
 			entries[i].effectData.shadowOffset = { net.ReadFloat(), net.ReadFloat() }
 		end
 		local fullbright = net.ReadBool()
+		local pixelized = net.ReadBool()
 
 		local block = hook.Run( "RevampedTextscreen_CanCreate", textscreen:GetNWEntity( "owner" ), entries )
 		
@@ -88,6 +89,7 @@ else
 
 		textscreen.entries = entries
 		textscreen.fullbright = fullbright
+		textscreen.pixelized = pixelized
 
 		SetTextscreenText( textscreen, w, h )
 	end )
@@ -97,11 +99,13 @@ else
 		local textscreen = net.ReadEntity()
 		local entries = textscreen.entries
 		local fullbright = textscreen.fullbright
+		local pixelized = textscreen.pixelized
 
 		net.Start( "RetrieveTextscreenText" )
 		net.WriteEntity( textscreen )
 		net.WriteTable( entries )
 		net.WriteBool( fullbright )
+		net.WriteBool( pixelized )
 		net.Send( ply )
 	end )
 
@@ -109,11 +113,13 @@ else
 		local textscreenId = net.ReadUInt( MAX_EDICT_BITS )
 		local entryCount = net.ReadUInt( 8 )
 		local fullbright = net.ReadBool()
+		local pixelized = net.ReadBool()
 
 		net.Start( "SetTextscreenText" )
 		net.WriteUInt( textscreenId, MAX_EDICT_BITS )
 		net.WriteUInt( entryCount, 8 )
 		net.WriteBool( fullbright )
+		net.WriteBool( pixelized )
 		for i = 1, entryCount do
 			net.WriteString( net.ReadString() )
 
@@ -172,6 +178,7 @@ function ENT:Initialize()
 		self.shouldDraw = true
 		self.entries = self.entries or {}
 		self.fullbright = self.fullbright == nil and false or self.fullbright
+		self.pixelized = self.pixelized == nil and false or self.pixelized
 		self.mesh = Mesh()
 	end
 	self:DrawShadow( false )
@@ -214,6 +221,10 @@ end
 if CLIENT then
 	function ENT:SetFullbright( b )
 		self.fullbright = b
+	end
+
+	function ENT:SetPixelized( b )
+		self.pixelized = b
 	end
 
 	function ENT:SetSize( size )
@@ -615,8 +626,8 @@ if CLIENT then
 			mat:SetScale( Vector( scl, scl, scl ) )
 			--mat:Translate( Vector( 0, htmlMat:Width(), -htmlMat:Height() ) * 0.5 * self.pixelScale )
 			--mat:Translate( Vector( 0, -self.size[1], self.size[2] ) * 0.5 * self.pixelScale )
-			render.PushFilterMin( TEXFILTER.ANISOTROPIC )
-			render.PushFilterMag( TEXFILTER.ANISOTROPIC )
+			render.PushFilterMin( self.pixelized and TEXFILTER.POINT or TEXFILTER.ANISOTROPIC )
+			render.PushFilterMag( self.pixelized and TEXFILTER.POINT or TEXFILTER.ANISOTROPIC )
 
 			cam.PushModelMatrix( mat )
 				render.SetMaterial( self.mat or debugwhite )

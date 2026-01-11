@@ -20,9 +20,10 @@ end
 
 TOOL.Author = "Mikey"
 TOOL.Name = "#tool.textscreen_revamped.name"
-TOOL.Category = "Text Screens Revamped"
+TOOL.Category = "#tool.textscreen_revamped.category"
 TOOL.ClientConVar["should_parent"] = 1
 TOOL.ClientConVar["fullbright"] = 1
+TOOL.ClientConVar["pixelized"] = 0
 
 if CLIENT then
 	TOOL.Information = {
@@ -38,6 +39,7 @@ if CLIENT then
 	}
 
 	language.Add( "tool.textscreen_revamped.name", "Text Screen Revamped" )
+	language.Add( "tool.textscreen_revamped.category", "Text Screens Revamped" )
 	language.Add( "tool.textscreen_revamped.desc", "Creates a text screen." )
 	language.Add( "tool.textscreen_revamped.left", "Create a Text Screen." )
 	language.Add( "tool.textscreen_revamped.right", "Update a Text Screen." )
@@ -47,6 +49,8 @@ if CLIENT then
 		local textscreenId = net.ReadUInt( MAX_EDICT_BITS )
 		local entryCount = net.ReadUInt( 8 )
 		local fullbright = net.ReadBool()
+		local pixelized = net.ReadBool()
+		
 		local entries = {}
 		for i = 1, entryCount do
 			entries[i] = {}
@@ -74,6 +78,7 @@ if CLIENT then
 			end
 
 			ent:SetFullbright( fullbright )
+			ent:SetPixelized( pixelized )
 			ent.entries = entries
 
 			ent:UpdateHTML()
@@ -85,8 +90,10 @@ if CLIENT then
 		local ent = net.ReadEntity()
 		local entries = net.ReadTable()
 		local fullbright = net.ReadBool()
+		local pixelized = net.ReadBool()
 
 		ent:SetFullbright( fullbright )
+		ent:SetPixelized( pixelized )
 		ent.entries = entries
 		ent:UpdateHTML()
 	end )
@@ -102,10 +109,12 @@ if CLIENT then
 		end
 
 		local fullbright = LocalPlayer():GetInfo( "textscreen_revamped_fullbright" ) == "1"
+		local pixelized = LocalPlayer():GetInfo( "textscreen_revamped_pixelized" ) == "1"
 		net.Start( "InitTextscreenText" )
 		net.WriteUInt( textscreenId, MAX_EDICT_BITS )
 		net.WriteUInt( #entries, 8 )
 		net.WriteBool( fullbright )
+		net.WriteBool( pixelized )
 		for _, entry in ipairs( entries ) do
 			net.WriteString( entry.text )
 
@@ -370,54 +379,6 @@ if CLIENT then
 			
 			ply.textscreen_revamped = ply.textscreen_revamped or {}
 			ply.textscreen_revamped.entries = textSheet.entries
-			--ply.textscreen_revamped.currentTextScreenText = ""
-			--[[
-			for i, entry in ipairs( textSheet.entries ) do
-
-				local text = entry.text
-				text = string.Replace( text, "<", "&lt;" )
-				text = string.Replace( text, ">", "&gt;" )
-				
-				local textDataStr = entry.text
-				textDataStr = string.Replace( textDataStr, "<", "&lt;" )
-				textDataStr = string.Replace( textDataStr, ">", "&gt;" )
-				textDataStr = string.Replace( textDataStr, "\\", "\\\\" )
-				textDataStr = string.Replace( textDataStr, "\n", " \\A " )
-				textDataStr = string.Replace( textDataStr, "'", "\\'" )
-				textDataStr = string.Replace( textDataStr, '"', '&quot;' )
-
-				ply.textscreen_revamped.currentTextScreenText = ply.textscreen_revamped.currentTextScreenText .. 
-				string.format( "
-				<text style="
-				--font: %s;
-				--size: %s;
-				--style: %s;
-				--weight: %s;
-				--color: %s;
-				--stroke: %s;
-				--stroke-color: %s;
-				--shadow-blur: %s;
-				--shadow-color: %s;
-				--shadow-x: %s;
-				--shadow-y: %s;
-				--text-data: '%s';
-				">%s</text>", 
-				entry.effectData.font, 
-				entry.effectData.size, 
-				entry.effectData.style,
-				entry.effectData.weight,
-				entry.effectData.color and ToHex( entry.effectData.color ) or "#FFFFFF",
-				entry.effectData.stroke,
-				entry.effectData.strokeColor and ToHex( entry.effectData.strokeColor ) or "#000000",
-				entry.effectData.shadowBlur,
-				entry.effectData.shadowColor and ToHex( entry.effectData.shadowColor ) or "#000000",
-				entry.effectData.shadowOffset[1],
-				entry.effectData.shadowOffset[2],
-				textDataStr,
-				text ) .. "\n"
-			end
-			]]
-			
 		end
 
 		-- Remove a text line and shift down the other lines properly
@@ -802,6 +763,10 @@ if CLIENT then
 
 		panel:CheckBox( "Fullbright?", "textscreen_revamped_fullbright" )
 		panel:Help( "This enables fullbrighting the textscreen. ( glows in the dark. )" )
+
+		local pixelizedCheckbox = panel:CheckBox( "Pixelized?", "textscreen_revamped_pixelized" )
+		pixelizedCheckbox:SetValue( LocalPlayer():GetInfo( "textscreen_revamped_pixelized", 0 ) == "1" )
+		panel:Help( "This disables the visual text filtering. ( pixelates the textscreen. )" )
 
 		panel:CheckBox( "Show Textscreen Bounds?", "textscreen_show_bounds" )
 		panel:Help( "This enables rendering bounds when holding either the toolgun or physgun." )
