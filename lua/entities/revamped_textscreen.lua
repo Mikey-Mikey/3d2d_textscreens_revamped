@@ -58,20 +58,35 @@ else
 	-- This is used to scale the textscreen physics based on the text length
 	net.Receive( "SetTextscreenText", function()
 		local textscreen = net.ReadEntity()
-		local w = net.ReadFloat()
-		local h = net.ReadFloat()
-		local txt = net.ReadString()
+		local w = math.Clamp( net.ReadFloat(), 0, 1024 )
+		local h = math.Clamp( net.ReadFloat(), 0, 1024 )
+		local entryCount = net.ReadUInt( 8 )
+		local entries = {}
+		for i = 1, entryCount do
+			entries[i] = {}
+			entries[i].effectData = {}
+			entries[i].text = net.ReadString()
+			entries[i].effectData.font = net.ReadString()
+			entries[i].effectData.size = net.ReadFloat()
+			entries[i].effectData.style = net.ReadString()
+			entries[i].effectData.weight = net.ReadString()
+			entries[i].effectData.color = net.ReadColor()
+			entries[i].effectData.stroke = net.ReadFloat()
+			entries[i].effectData.strokeColor = net.ReadColor()
+			entries[i].effectData.shadowBlur = net.ReadFloat()
+			entries[i].effectData.shadowColor = net.ReadColor()
+			entries[i].effectData.shadowOffset = { net.ReadFloat(), net.ReadFloat() }
+		end
 		local fullbright = net.ReadBool()
-		txt = txt ~= "" and txt or "[Insert Text Here]"
 
-		local block = hook.Run( "RevampedTextscreen_CanCreate", textscreen:GetNWEntity( "owner" ), txt )
+		local block = hook.Run( "RevampedTextscreen_CanCreate", textscreen:GetNWEntity( "owner" ), entries )
 		
 		if block then
 			SafeRemoveEntityDelayed( textscreen, 0 )
 			return
 		end
 
-		textscreen.text = txt
+		textscreen.entries = entries
 		textscreen.fullbright = fullbright
 
 		SetTextscreenText( textscreen, w, h )
@@ -80,28 +95,41 @@ else
 	net.Receive( "RetrieveTextscreenText", function()
 		local ply = net.ReadPlayer()
 		local textscreen = net.ReadEntity()
-		local txt = textscreen.text
+		local entries = textscreen.entries
 		local fullbright = textscreen.fullbright
-		txt = txt ~= "" and txt or "[Insert Text Here]"
+
 		net.Start( "RetrieveTextscreenText" )
 		net.WriteEntity( textscreen )
-		net.WriteString( txt )
+		net.WriteTable( entries )
 		net.WriteBool( fullbright )
 		net.Send( ply )
 	end )
 
 	net.Receive( "InitTextscreenText", function()
-		local textscreenId = net.ReadInt( 32 )
-		local txt = net.ReadString()
+		local textscreenId = net.ReadUInt( MAX_EDICT_BITS )
+		local entryCount = net.ReadUInt( 8 )
 		local fullbright = net.ReadBool()
-		txt = txt ~= "" and txt or "[Insert Text Here]"
-		net.Start( "SetTextscreenText" )
-		net.WriteString( txt )
-		net.WriteBool( fullbright )
-		net.WriteInt( textscreenId, 32 )
-		net.Broadcast()
 
-		local textscreen = Entity( textscreenId )
+		net.Start( "SetTextscreenText" )
+		net.WriteUInt( textscreenId, MAX_EDICT_BITS )
+		net.WriteUInt( entryCount, 8 )
+		net.WriteBool( fullbright )
+		for i = 1, entryCount do
+			net.WriteString( net.ReadString() )
+
+			net.WriteString( net.ReadString() )
+			net.WriteFloat( net.ReadFloat() )
+			net.WriteString( net.ReadString() )
+			net.WriteString( net.ReadString() )
+			net.WriteColor( net.ReadColor() )
+			net.WriteFloat( net.ReadFloat() )
+			net.WriteColor( net.ReadColor() )
+			net.WriteFloat( net.ReadFloat() )
+			net.WriteColor( net.ReadColor() )
+			net.WriteFloat( net.ReadFloat() )
+			net.WriteFloat( net.ReadFloat() )
+		end
+		net.Broadcast()
 	end )
 end
 
@@ -142,7 +170,7 @@ function ENT:Initialize()
 		self.modelColor = Color( 255, 0, 0, 5 )
 		self.sizeAnim = 0
 		self.shouldDraw = true
-		self.text = self.text or ""
+		self.entries = self.entries or {}
 		self.fullbright = self.fullbright == nil and false or self.fullbright
 		self.mesh = Mesh()
 	end
@@ -152,7 +180,7 @@ end
 if SERVER then
 	function ENT:OnDuplicated( data )
 		net.Start( "SetTextscreenText" )
-		net.WriteString( data.text )
+		net.WriteTable( data.entries )
 		net.WriteBool( data.fullbright )
 		net.WriteInt( self:EntIndex(), 32 )
 		net.Broadcast()
@@ -286,7 +314,6 @@ if CLIENT then
 						--shadow-y: 0;
 						--stroke: 1;
 						--stroke-color: rgba( 0, 0, 0, 1 );
-						--text-data: "Data";
 					}
 
 					.container {
@@ -333,28 +360,63 @@ if CLIENT then
 				<div class="container" id="main">
 		]]
 
-		self.htmlPanel:QueueJavascript( TEXTSCREEN_REVAMPED.DOMPurify )
+		
 
-		local txt = self.text
+		self.htmlPanel:QueueJavascript( TEXTSCREEN_REVAMPED.DOMPurify )
+		local entries = self.entries
+
+		local txt = ""
+		for i, entry in ipairs( entries ) do
+			txt = txt .. string.format( [[
+				<text style="
+				--font: %s;
+				--size: %s;
+				--style: %s;
+				--weight: %s;
+				--color: %s;
+				--stroke: %s;
+				--stroke-color: %s;
+				--shadow-blur: %s;
+				--shadow-color: %s;
+				--shadow-x: %s;
+				--shadow-y: %s;
+				">%s</text>]], 
+				entry.effectData.font, 
+				entry.effectData.size, 
+				entry.effectData.style,
+				entry.effectData.weight,
+				entry.effectData.color and ToHex( entry.effectData.color ) or "#FFFFFF",
+				entry.effectData.stroke,
+				entry.effectData.strokeColor and ToHex( entry.effectData.strokeColor ) or "#000000",
+				entry.effectData.shadowBlur,
+				entry.effectData.shadowColor and ToHex( entry.effectData.shadowColor ) or "#000000",
+				entry.effectData.shadowOffset[1],
+				entry.effectData.shadowOffset[2],
+				entry.text ) .. "\n"
+		end
 
 		txt = string.Replace( txt, ">\n", ">" ) -- Remove line breaks right after tags
 		txt = string.TrimRight( txt )
 
+		--[[
 		self.htmlPanel:AddFunction( "textscreen", "sanitizeText", function( sanitizedText )
-			txt = sanitizedText
+			
 		end )
-
-		-- Sanitize text
-		self.htmlPanel:QueueJavascript( string.format( [[
-			const txt = DOMPurify.sanitize( `%s`, { USE_PROFILES: {  } });
-			textscreen.sanitizeText( txt );
-		]], txt ) )
+		]]
+		--txt = sanitizedText
 
 		newHtml = newHtml .. txt
 		newHtml = newHtml .. "</div>"
 		newHtml = newHtml .. "</body>"
 
 		self.htmlPanel:SetHTML( newHtml )
+		self.htmlPanel:QueueJavascript( [[
+			const elem = document.getElementById( "main" );
+			var rect = elem.getBoundingClientRect();
+			textscreen.resizeTextscreen( rect.width, rect.height );
+		]] )
+		--self.htmlPanel:SetPaintedManually( true )
+		self.htmlPanel:SetPaintedManually( true )
 
 		self.htmlPanel:AddFunction( "textscreen", "resizeTextscreen", function( w, h )
 			--self.pixelScale = 0.1 * w * h / 1024^2
@@ -367,27 +429,38 @@ if CLIENT then
 			self:EnableMatrix( "RenderMultiply", sclMat )
 			self:SetRenderBounds( -scale, scale )
 			self:SetSize( Vector( w, h, 0 ) )
+
 			timer.Simple( 0.02, function()
 				self.meshUpdated = true
 			end )
 
 			if LocalPlayer() ~= self:GetNWEntity( "owner" ) then return end
+
+			
+
 			net.Start( "SetTextscreenText" )
 			net.WriteEntity( self )
 			net.WriteFloat( scale[2] )
 			net.WriteFloat( scale[3] )
-			net.WriteString( self.text )
+			net.WriteUInt( #self.entries, 8 )
+			for _, entry in ipairs( self.entries ) do
+				net.WriteString( entry.text )
+				local effectData = entry.effectData or {}
+				net.WriteString( effectData.font )
+				net.WriteFloat( effectData.size )
+				net.WriteString( effectData.style )
+				net.WriteString( effectData.weight )
+				net.WriteColor( effectData.color )
+				net.WriteFloat( effectData.stroke )
+				net.WriteColor( effectData.strokeColor )
+				net.WriteFloat( effectData.shadowBlur )
+				net.WriteColor( effectData.shadowColor )
+				net.WriteFloat( effectData.shadowOffset and effectData.shadowOffset[1] )
+				net.WriteFloat( effectData.shadowOffset and effectData.shadowOffset[2] )
+			end
 			net.WriteBool( self.fullbright )
 			net.SendToServer()
 		end )
-
-		self.htmlPanel:QueueJavascript( [[
-			const elem = document.getElementById( "main" );
-			var rect = elem.getBoundingClientRect();
-			textscreen.resizeTextscreen( rect.width, rect.height );
-		]] )
-		--self.htmlPanel:SetPaintedManually( true )
-		self.htmlPanel:SetPaintedManually( true )
 	end
 
 	local debugwhite = Material( "debug/env_cubemap_model" )

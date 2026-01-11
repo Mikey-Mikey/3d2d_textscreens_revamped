@@ -44,48 +44,83 @@ if CLIENT then
 	language.Add( "tool.textscreen_revamped.reload", "Create a Text Screen In The Air." )
 
 	net.Receive( "SetTextscreenText", function()
-		local txt = net.ReadString()
+		local textscreenId = net.ReadUInt( MAX_EDICT_BITS )
+		local entryCount = net.ReadUInt( 8 )
 		local fullbright = net.ReadBool()
-		local entId = net.ReadInt( 32 )
+		local entries = {}
+		for i = 1, entryCount do
+			entries[i] = {}
+			entries[i].effectData = {}
+			entries[i].text = net.ReadString()
+			entries[i].effectData.font = net.ReadString()
+			entries[i].effectData.size = net.ReadFloat()
+			entries[i].effectData.style = net.ReadString()
+			entries[i].effectData.weight = net.ReadString()
+			entries[i].effectData.color = net.ReadColor()
+			entries[i].effectData.stroke = net.ReadFloat()
+			entries[i].effectData.strokeColor = net.ReadColor()
+			entries[i].effectData.shadowBlur = net.ReadFloat()
+			entries[i].effectData.shadowColor = net.ReadColor()
+			entries[i].effectData.shadowOffset = { net.ReadFloat(), net.ReadFloat() }
+		end
 
-		timer.Create( "WaitForTextscreen" .. tostring( entId ), 0.01, 0, function()
-			local ent = Entity( entId )
+		timer.Create( "WaitForTextscreen" .. tostring( textscreenId ), 0.01, 0, function()
+			local ent = Entity( textscreenId )
 			if not IsValid( ent ) then return end
 			
 			if not ent.SetText then
-				timer.Remove( "WaitForTextscreen" .. tostring( entId ) )
+				timer.Remove( "WaitForTextscreen" .. tostring( textscreenId ) )
 				return
 			end
 
 			ent:SetFullbright( fullbright )
-
-			ent:SetText( txt )
+			ent.entries = entries
 
 			ent:UpdateHTML()
-			timer.Remove( "WaitForTextscreen" .. tostring( entId ) )
+			timer.Remove( "WaitForTextscreen" .. tostring( textscreenId ) )
 		end )
 	end )
 
 	net.Receive( "RetrieveTextscreenText", function()
 		local ent = net.ReadEntity()
-		local txt = net.ReadString()
+		local entries = net.ReadTable()
 		local fullbright = net.ReadBool()
 
 		ent:SetFullbright( fullbright )
-
-		ent:SetText( txt )
+		ent.entries = entries
 		ent:UpdateHTML()
 	end )
 
 	net.Receive( "InitTextscreenText", function()
 		local textscreenId = net.ReadInt( 32 )
-		local txt = LocalPlayer().textscreen_revamped.currentTextScreenText
-		local fullbrightCVar = GetConVar( "textscreen_revamped_fullbright" )
-		local fullbright = fullbrightCVar:GetBool()
+		local entries = LocalPlayer().textscreen_revamped.entries
+
+		for index, entry in ipairs( entries ) do
+			if not istable( entry ) then
+				entries[index] = nil
+			end 
+		end
+
+		local fullbright = LocalPlayer():GetInfo( "textscreen_revamped_fullbright" ) == "1"
 		net.Start( "InitTextscreenText" )
-		net.WriteInt( textscreenId, 32 )
-		net.WriteString( txt )
+		net.WriteUInt( textscreenId, MAX_EDICT_BITS )
+		net.WriteUInt( #entries, 8 )
 		net.WriteBool( fullbright )
+		for _, entry in ipairs( entries ) do
+			net.WriteString( entry.text )
+
+			net.WriteString( entry.effectData.font )
+			net.WriteFloat( entry.effectData.size )
+			net.WriteString( entry.effectData.style )
+			net.WriteString( entry.effectData.weight )
+			net.WriteColor( entry.effectData.color )
+			net.WriteFloat( entry.effectData.stroke )
+			net.WriteColor( entry.effectData.strokeColor )
+			net.WriteFloat( entry.effectData.shadowBlur )
+			net.WriteColor( entry.effectData.shadowColor )
+			net.WriteFloat( entry.effectData.shadowOffset[1] )
+			net.WriteFloat( entry.effectData.shadowOffset[2] )
+		end
 		net.SendToServer()
 	end )
 end
@@ -334,8 +369,9 @@ if CLIENT then
 			local ply = LocalPlayer()
 			
 			ply.textscreen_revamped = ply.textscreen_revamped or {}
-			ply.textscreen_revamped.currentTextScreenText = ""
-			
+			ply.textscreen_revamped.entries = textSheet.entries
+			--ply.textscreen_revamped.currentTextScreenText = ""
+			--[[
 			for i, entry in ipairs( textSheet.entries ) do
 
 				local text = entry.text
@@ -351,7 +387,7 @@ if CLIENT then
 				textDataStr = string.Replace( textDataStr, '"', '&quot;' )
 
 				ply.textscreen_revamped.currentTextScreenText = ply.textscreen_revamped.currentTextScreenText .. 
-				string.format( [[
+				string.format( "
 				<text style="
 				--font: %s;
 				--size: %s;
@@ -365,7 +401,7 @@ if CLIENT then
 				--shadow-x: %s;
 				--shadow-y: %s;
 				--text-data: '%s';
-				">%s</text>]], 
+				">%s</text>", 
 				entry.effectData.font, 
 				entry.effectData.size, 
 				entry.effectData.style,
@@ -380,6 +416,8 @@ if CLIENT then
 				textDataStr,
 				text ) .. "\n"
 			end
+			]]
+			
 		end
 
 		-- Remove a text line and shift down the other lines properly
@@ -418,6 +456,8 @@ if CLIENT then
 				shadowOffset = effectData.shadowOffset or { 0, 0 },
 			}
 
+			
+
 			local panel = vgui.Create( "DScrollPanel", textSheet )
 			panel:DockMargin( 5, 5, 5, 5 )
 			panel:Dock( FILL )
@@ -448,6 +488,7 @@ if CLIENT then
 			addLineButton.Paint = function() end
 
 			addLineButton.DoClick = function()
+				if #textSheet.entries >= 10 then return end
 				textSheet.addTextLine( nil, nil, #textSheet.entries + 1 )
 			end
 
@@ -778,12 +819,13 @@ if CLIENT then
 		panel:AddItem( renderDistanceSlider )
 		panel:Help( "This controls the render distance of the textscreen. 0 = don't draw any textscreens" )
 
-		LocalPlayer().textscreen_revamped.currentTextScreenText = lastSavedTxt or ""
+		LocalPlayer().textscreen_revamped.entries = lastSavedEntries or {}
 	end
 
 	hook.Add( "InitPostEntity", "TextscreenRevamped_PlayerInit", function()
 		LocalPlayer().textscreen_revamped = LocalPlayer().textscreen_revamped or {}
-		LocalPlayer().textscreen_revamped.currentTextScreenText = LocalPlayer().textscreen_revamped.currentTextScreenText or ""
+		LocalPlayer().textscreen_revamped.entries = LocalPlayer().textscreen_revamped.entries or {}
+		--LocalPlayer().textscreen_revamped.currentTextScreenText = LocalPlayer().textscreen_revamped.currentTextScreenText or ""
 
 		local textscreens = ents.FindByClass( "revamped_textscreen" )
 		for _, textscreen in pairs( textscreens ) do
