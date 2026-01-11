@@ -314,6 +314,7 @@ if CLIENT then
 						margin: 0;
 						padding: 0;
 						paint-order: stroke fill;
+						user-select: none;
 						--font: 'Arial';
 						--size: 6;
 						--weight: 400;
