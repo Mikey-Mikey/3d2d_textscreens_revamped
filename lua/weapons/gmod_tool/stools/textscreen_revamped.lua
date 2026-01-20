@@ -87,20 +87,45 @@ if CLIENT then
 	end )
 
 	net.Receive( "RetrieveTextscreenText", function()
-		local ent = net.ReadEntity()
-		local entries = net.ReadTable()
+		local textscreen = net.ReadEntity()
+		local entryCount = net.ReadUInt( 8 )
 		local fullbright = net.ReadBool()
 		local pixelized = net.ReadBool()
+		local entries = {}
+		for i = 1, entryCount do
+			entries[i] = {}
+			entries[i].effectData = {}
+			entries[i].text = net.ReadString()
+			entries[i].effectData.font = net.ReadString()
+			entries[i].effectData.size = net.ReadFloat()
+			entries[i].effectData.style = net.ReadString()
+			entries[i].effectData.weight = net.ReadString()
+			entries[i].effectData.color = net.ReadColor()
+			entries[i].effectData.stroke = net.ReadFloat()
+			entries[i].effectData.strokeColor = net.ReadColor()
+			entries[i].effectData.shadowBlur = net.ReadFloat()
+			entries[i].effectData.shadowColor = net.ReadColor()
+			entries[i].effectData.shadowOffset = { net.ReadFloat(), net.ReadFloat() }
+		end
 
-		ent:SetFullbright( fullbright )
-		ent:SetPixelized( pixelized )
-		ent.entries = entries
-		ent:UpdateHTML()
+		textscreen:SetFullbright( fullbright )
+		textscreen:SetPixelized( pixelized )
+		textscreen.entries = entries
+		textscreen:UpdateHTML()
 	end )
 
 	net.Receive( "InitTextscreenText", function()
+		local ply = LocalPlayer()
+
+		if ply.textscreen_revamped and ply.textscreen_revamped.lastTextscreenUpdate and CurTime() - ply.textscreen_revamped.lastTextscreenUpdate < 0.25 then
+			return
+		end
+
+		ply.textscreen_revamped = ply.textscreen_revamped or {}
+		ply.textscreen_revamped.lastTextscreenUpdate = CurTime()
+
 		local textscreenId = net.ReadInt( 32 )
-		local entries = LocalPlayer().textscreen_revamped.entries
+		local entries = ply.textscreen_revamped.entries
 
 		for index, entry in ipairs( entries ) do
 			if not istable( entry ) then
@@ -108,8 +133,8 @@ if CLIENT then
 			end 
 		end
 
-		local fullbright = LocalPlayer():GetInfo( "textscreen_revamped_fullbright" ) == "1"
-		local pixelized = LocalPlayer():GetInfo( "textscreen_revamped_pixelized" ) == "1"
+		local fullbright = ply:GetInfo( "textscreen_revamped_fullbright" ) == "1"
+		local pixelized = ply:GetInfo( "textscreen_revamped_pixelized" ) == "1"
 		net.Start( "InitTextscreenText" )
 		net.WriteUInt( textscreenId, MAX_EDICT_BITS )
 		net.WriteUInt( #entries, 8 )
@@ -158,11 +183,20 @@ end
 function TOOL:LeftClick( trace )
 	if CLIENT then return true end
 
-	if not self:GetOwner():CheckLimit( "revamped_textscreens" ) then return true end
+	local ply = self:GetOwner()
+
+	if not ply:CheckLimit( "revamped_textscreens" ) then return true end
+
+	if ply.textscreen_revamped and ply.textscreen_revamped.lastTextscreenUpdate and CurTime() - ply.textscreen_revamped.lastTextscreenUpdate < 0.25 then
+		return false
+	end
+
+	ply.textscreen_revamped = ply.textscreen_revamped or {}
+	ply.textscreen_revamped.lastTextscreenUpdate = CurTime()
 
 	if CPPI and self:GetClientBool( "should_parent" ) and IsValid( trace.Entity ) then
 		local traceEnt = trace.Entity
-		if not traceEnt:CPPICanTool( self:GetOwner() ) then return false end
+		if not traceEnt:CPPICanTool( ply ) then return false end
 	end
 
 	local placeAng = trace.Normal:Angle()
@@ -170,7 +204,7 @@ function TOOL:LeftClick( trace )
 	if trace.Hit then
 		placeAng = trace.HitNormal:Angle()
 		if math.abs( trace.HitNormal[3] ) > 0.95 then
-			local offset = self:GetOwner():GetShootPos() - trace.HitPos
+			local offset = ply:GetShootPos() - trace.HitPos
 
 			local upDot = placeAng:Up():Dot( offset:GetNormalized() )
 			local rightDot = placeAng:Right():Dot( offset:GetNormalized() )
@@ -182,21 +216,21 @@ function TOOL:LeftClick( trace )
 	local ent = ents.Create( "revamped_textscreen" )
 	ent:SetPos( trace.HitPos + trace.HitNormal * 1 )
 	ent:SetAngles( placeAng )
-	ent:SetNWEntity( "owner", self:GetOwner() )
-	ent.owner = self:GetOwner()
+	ent:SetNWEntity( "owner", ply )
+	ent.owner = ply
 
 	ent:Spawn()
 	ent:Activate()
 
 	if CPPI then
-		ent:CPPISetOwner( self:GetOwner() )
+		ent:CPPISetOwner( ply )
 	end
 
 	if not IsValid( ent ) then return end
 
 	net.Start( "InitTextscreenText" )
 	net.WriteInt( ent:EntIndex(), 32 )
-	net.Send( self:GetOwner() )
+	net.Send( ply )
 
 	if self:GetClientBool( "should_parent" ) and IsValid( trace.Entity ) then
 		ent:SetParent( trace.Entity )
@@ -204,11 +238,11 @@ function TOOL:LeftClick( trace )
 
 
 	undo.Create( "Text Screen" )
-	undo.SetPlayer( self:GetOwner() )
+	undo.SetPlayer( ply )
 	undo.AddEntity( ent )
 	undo.Finish()
 
-	self:GetOwner():AddCount( "revamped_textscreens", ent )
+	ply:AddCount( "revamped_textscreens", ent )
 
 	return true
 end
@@ -790,14 +824,5 @@ if CLIENT then
 	hook.Add( "InitPostEntity", "TextscreenRevamped_PlayerInit", function()
 		LocalPlayer().textscreen_revamped = LocalPlayer().textscreen_revamped or {}
 		LocalPlayer().textscreen_revamped.entries = LocalPlayer().textscreen_revamped.entries or {}
-		--LocalPlayer().textscreen_revamped.currentTextScreenText = LocalPlayer().textscreen_revamped.currentTextScreenText or ""
-
-		local textscreens = ents.FindByClass( "revamped_textscreen" )
-		for _, textscreen in pairs( textscreens ) do
-			net.Start( "RetrieveTextscreenText" )
-			net.WritePlayer( LocalPlayer() )
-			net.WriteEntity( textscreen )
-			net.SendToServer()
-		end
 	end )
 end

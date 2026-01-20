@@ -56,8 +56,17 @@ else
 	end
 
 	-- This is used to scale the textscreen physics based on the text length
-	net.Receive( "SetTextscreenText", function()
+	net.Receive( "SetTextscreenText", function( _, ply )
 		local textscreen = net.ReadEntity()
+
+		if not IsValid( textscreen ) then return end
+
+		if CPPI and not textscreen:CPPIGetOwner() == ply then
+			return
+		elseif textscreen:GetNWEntity( "owner" ) ~= ply then
+			return
+		end
+
 		local w = math.Clamp( net.ReadFloat(), 0, 1024 )
 		local h = math.Clamp( net.ReadFloat(), 0, 1024 )
 		local entryCount = net.ReadUInt( 8 )
@@ -94,23 +103,58 @@ else
 		SetTextscreenText( textscreen, w, h )
 	end )
 
-	net.Receive( "RetrieveTextscreenText", function()
-		local ply = net.ReadPlayer()
-		local textscreen = net.ReadEntity()
-		local entries = textscreen.entries
-		local fullbright = textscreen.fullbright
-		local pixelized = textscreen.pixelized
-
-		net.Start( "RetrieveTextscreenText" )
-		net.WriteEntity( textscreen )
-		net.WriteTable( entries )
-		net.WriteBool( fullbright )
-		net.WriteBool( pixelized )
-		net.Send( ply )
+	gameevent.Listen( "OnRequestFullUpdate" )
+	hook.Add( "OnRequestFullUpdate", "TextscreenRevamped_RetrieveTextscreenText", function( data )
+		local UID = data.userid
+		local ply = Player( UID )
+		if ply.textscreensRetrieved then return end
+		RetrieveTextscreenText( ply )
+		ply.textscreensRetrieved = true
 	end )
 
-	net.Receive( "InitTextscreenText", function()
+	function RetrieveTextscreenText( ply )
+		local textscreens = ents.FindByClass( "revamped_textscreen" )
+		local retrieveCor = coroutine.wrap( function()
+			for _, textscreen in ipairs( textscreens ) do
+				local entries = textscreen.entries
+				local fullbright = textscreen.fullbright
+				local pixelized = textscreen.pixelized
+
+				net.Start( "RetrieveTextscreenText" )
+				net.WriteEntity( textscreen )
+				net.WriteUInt( #entries, 8 )
+				net.WriteBool( fullbright )
+				net.WriteBool( pixelized )
+				for i = 1, #entries do
+					net.WriteString( entries[i].text )
+					net.WriteString( entries[i].effectData.font )
+					net.WriteFloat( entries[i].effectData.size )
+					net.WriteString( entries[i].effectData.style )
+					net.WriteString( entries[i].effectData.weight )
+					net.WriteColor( entries[i].effectData.color )
+					net.WriteFloat( entries[i].effectData.stroke )
+					net.WriteColor( entries[i].effectData.strokeColor )
+					net.WriteFloat( entries[i].effectData.shadowBlur )
+					net.WriteColor( entries[i].effectData.shadowColor )
+					net.WriteFloat( entries[i].effectData.shadowOffset[1] )
+					net.WriteFloat( entries[i].effectData.shadowOffset[2] )
+				end
+				net.Send( ply )
+				coroutine.yield()
+			end
+			return true
+		end )
+
+		timer.Create( "RetrieveTextscreenText" .. tostring( ply ), 0.1, 0, function()
+			if retrieveCor() then
+				timer.Remove( "RetrieveTextscreenText" .. tostring( ply ) )
+			end
+		end )
+	end
+
+	net.Receive( "InitTextscreenText", function( _, ply )
 		local textscreenId = net.ReadUInt( MAX_EDICT_BITS )
+
 		local entryCount = net.ReadUInt( 8 )
 		local fullbright = net.ReadBool()
 		local pixelized = net.ReadBool()
@@ -141,6 +185,8 @@ end
 
 function ENT:Initialize()
 	if SERVER then
+		local ply = self:GetNWEntity( "owner" )
+
 		self:SetModel( "models/hunter/blocks/cube05x05x05.mdl" )
 		self:SetMaterial( "models/debug/debugwhite" )
 		self:SetRenderMode( RENDERMODE_TRANSCOLOR )
@@ -379,6 +425,10 @@ if CLIENT then
 
 		local txt = ""
 		for i, entry in ipairs( entries ) do
+			local entryTxt = entry.text
+			-- replace angle brackets with html safe
+			entryTxt = string.Replace( entryTxt, "<", "&lt;" )
+			entryTxt = string.Replace( entryTxt, ">", "&gt;" )
 			txt = txt .. string.format( [[
 				<text style="
 				--font: %s;
@@ -404,7 +454,7 @@ if CLIENT then
 				entry.effectData.shadowColor and ToHex( entry.effectData.shadowColor ) or "#000000",
 				entry.effectData.shadowOffset[1],
 				entry.effectData.shadowOffset[2],
-				entry.text ) .. "\n"
+				entryTxt ) .. "\n"
 		end
 
 		txt = string.Replace( txt, ">\n", ">" ) -- Remove line breaks right after tags
