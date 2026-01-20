@@ -20,6 +20,10 @@ else
 
 	CreateConVar( "sbox_maxrevamped_textscreens", 10, { FCVAR_NOTIFY }, "Maximum textscreens a single player can create" )
 
+	function tableToColor( tbl )
+		return Color( tbl.r, tbl.g, tbl.b, tbl.a )
+	end
+
 	function SetTextscreenText( textscreen, width, height )
 		if not IsValid( textscreen ) or textscreen.boxSize then
 			if IsValid( textscreen ) and IsValid( textscreen:GetParent() ) then
@@ -60,13 +64,13 @@ else
 		local textscreen = net.ReadEntity()
 
 		if not IsValid( textscreen ) then return end
-
+		
 		if CPPI and not textscreen:CPPIGetOwner() == ply then
 			return
 		elseif textscreen:GetNWEntity( "owner" ) ~= ply then
 			return
 		end
-
+		
 		local w = math.Clamp( net.ReadFloat(), 0, 1024 )
 		local h = math.Clamp( net.ReadFloat(), 0, 1024 )
 		local entryCount = net.ReadUInt( 8 )
@@ -191,7 +195,28 @@ function ENT:Initialize()
 		self:SetMaterial( "models/debug/debugwhite" )
 		self:SetRenderMode( RENDERMODE_TRANSCOLOR )
 		
-		if self.boxSize then
+		if self.entries then -- Basically if it's duped d:
+			net.Start( "SetTextscreenText" )
+			net.WriteUInt( self:EntIndex(), MAX_EDICT_BITS )
+			net.WriteUInt( #self.entries, 8 )
+			net.WriteBool( self.fullbright )
+			net.WriteBool( self.pixelized )
+			for i = 1, #self.entries do
+				net.WriteString( self.entries[i].text )
+				net.WriteString( self.entries[i].effectData.font )
+				net.WriteFloat( self.entries[i].effectData.size )
+				net.WriteString( self.entries[i].effectData.style )
+				net.WriteString( self.entries[i].effectData.weight )
+				net.WriteColor( tableToColor( self.entries[i].effectData.color ) )
+				net.WriteFloat( self.entries[i].effectData.stroke )
+				net.WriteColor( tableToColor( self.entries[i].effectData.strokeColor ) )
+				net.WriteFloat( self.entries[i].effectData.shadowBlur )
+				net.WriteColor( tableToColor( self.entries[i].effectData.shadowColor ) )
+				net.WriteFloat( self.entries[i].effectData.shadowOffset[1] )
+				net.WriteFloat( self.entries[i].effectData.shadowOffset[2] )
+			end
+			net.Broadcast()
+
 			self:PhysicsInitBox( -self.boxSize * 0.5, self.boxSize * 0.5 )
 			self:SetCollisionBounds( -self.boxSize * 0.5, self.boxSize * 0.5 )
 			self:SetMoveType( MOVETYPE_VPHYSICS )
@@ -472,11 +497,6 @@ if CLIENT then
 		newHtml = newHtml .. "</body>"
 
 		self.htmlPanel:SetHTML( newHtml )
-		self.htmlPanel:QueueJavascript( [[
-			const elem = document.getElementById( "main" );
-			var rect = elem.getBoundingClientRect();
-			textscreen.resizeTextscreen( rect.width, rect.height );
-		]] )
 		--self.htmlPanel:SetPaintedManually( true )
 		self.htmlPanel:SetPaintedManually( true )
 
@@ -497,8 +517,6 @@ if CLIENT then
 			end )
 
 			if LocalPlayer() ~= self:GetNWEntity( "owner" ) then return end
-
-			
 
 			net.Start( "SetTextscreenText" )
 			net.WriteEntity( self )
@@ -521,21 +539,20 @@ if CLIENT then
 				net.WriteFloat( effectData.shadowOffset and effectData.shadowOffset[2] )
 			end
 			net.WriteBool( self.fullbright )
+			net.WriteBool( self.pixelized )
 			net.SendToServer()
 		end )
+
+		self.htmlPanel:QueueJavascript( [[
+			const elem = document.getElementById( "main" );
+			var rect = elem.getBoundingClientRect();
+			textscreen.resizeTextscreen( rect.width, rect.height );
+		]] )
 	end
 
 	local debugwhite = Material( "debug/env_cubemap_model" )
 
 	function ENT:DrawModelOrMesh()
-		--[[
-		local renderDist = TEXTSCREEN_REVAMPED.RenderDistanceCVar:GetFloat() ^ 2
-		local eyeDist = EyePos():DistToSqr( self:GetPos() )
-
-		if eyeDist > renderDist and not ( self:GetNWEntity( "owner" ) == LocalPlayer() and self.firstFrame ) then
-			return
-		end
-		]]
 		if not IsValid( self.htmlPanel ) and self.text ~= "" then
 			self:UpdateHTML()
 		end
@@ -577,11 +594,14 @@ if CLIENT then
 				local matSclX, matSclY = htmlMat:Width() * self.pixelScale, htmlMat:Height() * self.pixelScale
 				local sclX, sclY = self.size[1] * self.pixelScale, self.size[2] * self.pixelScale--htmlMat:Width() * self.pixelScale, htmlMat:Height() * self.pixelScale
 
+				local totalSclX = 1 / matSclX * sclX
+				local totalSclY = 1 / matSclY * sclY
+
 				local matdata = {
 					["$basetexture"] = htmlMat:GetName(),
 					["$translucent"] = 1,
 					--["$color"] = Vector( 1, 1, 1 ),
-					["$basetexturetransform"] = "center 0 0 scale " .. 1 / matSclX * sclX .. " " .. 1 / matSclY * sclY .. " rotate 0 translate 0 0",
+					["$basetexturetransform"] = "center 0 0 scale " .. totalSclX .. " " .. totalSclY .. " rotate 0 translate 0 0",
 					["$model"] = 1
 				}
 
