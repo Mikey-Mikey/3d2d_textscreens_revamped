@@ -164,6 +164,8 @@ if SERVER then
 		if not ply:CheckLimit( "revamped_textscreens" ) then return end
 		local ent = ents.Create( "revamped_textscreen" ) --duplicator.GenericDuplicatorFunction( ply, data )
 
+		ent.boxSize = data.Mins - data.Maxs
+
 		ent:SetPos( data.Pos )
 		ent:SetAngles( data.Angle )
 		ent:SetNWEntity( "owner", ply )

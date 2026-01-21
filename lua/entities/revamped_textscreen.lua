@@ -194,6 +194,24 @@ function ENT:Initialize()
 		self:SetModel( "models/hunter/blocks/cube05x05x05.mdl" )
 		self:SetMaterial( "models/debug/debugwhite" )
 		self:SetRenderMode( RENDERMODE_TRANSCOLOR )
+		if self.boxSize then
+			self:PhysicsInitBox( -self.boxSize * 0.5, self.boxSize * 0.5 )
+			self:SetCollisionBounds( -self.boxSize * 0.5, self.boxSize * 0.5 )
+			self:SetMoveType( MOVETYPE_VPHYSICS )
+			self:SetSolid( SOLID_VPHYSICS )
+			self:EnableCustomCollisions( true )
+
+			self:SetCollisionGroup( COLLISION_GROUP_WORLD )
+			local mass = 50
+			self:GetPhysicsObject():SetMass( mass )
+			self:SetSolidFlags( 0 )
+			self:AddSolidFlags( FSOLID_CUSTOMRAYTEST )
+			self:AddSolidFlags( FSOLID_CUSTOMBOXTEST )
+
+			self:CollisionRulesChanged()
+
+			self.PhysCollide = CreatePhysCollideBox( -self.boxSize * 0.5, self.boxSize * 0.5 )
+		end
 	end
 
 	if CLIENT then
@@ -226,6 +244,7 @@ if SERVER then
 
 		table.insert( TEXTSCREEN_REVAMPED.SetTextscreenTextQueue, {
 			entries = data.entries,
+			boxSize = data.Mins - data.Maxs,
 			fullbright = data.fullbright,
 			pixelized = data.pixelized,
 			entindex = self:EntIndex()
@@ -257,23 +276,6 @@ if SERVER then
 				net.WriteFloat( screenData.entries[i].effectData.shadowOffset[2] )
 			end
 			net.Broadcast()
-
-			self:PhysicsInitBox( -self.boxSize * 0.5, self.boxSize * 0.5 )
-			self:SetCollisionBounds( -self.boxSize * 0.5, self.boxSize * 0.5 )
-			self:SetMoveType( MOVETYPE_VPHYSICS )
-			self:SetSolid( SOLID_VPHYSICS )
-			self:EnableCustomCollisions( true )
-
-			self:SetCollisionGroup( COLLISION_GROUP_WORLD )
-			local mass = 50
-			self:GetPhysicsObject():SetMass( mass )
-			self:SetSolidFlags( 0 )
-			self:AddSolidFlags( FSOLID_CUSTOMRAYTEST )
-			self:AddSolidFlags( FSOLID_CUSTOMBOXTEST )
-
-			self:CollisionRulesChanged()
-
-			self.PhysCollide = CreatePhysCollideBox( -self.boxSize * 0.5, self.boxSize * 0.5 )
 		end )
 	end
 end
