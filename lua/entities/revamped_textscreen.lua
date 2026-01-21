@@ -194,46 +194,6 @@ function ENT:Initialize()
 		self:SetModel( "models/hunter/blocks/cube05x05x05.mdl" )
 		self:SetMaterial( "models/debug/debugwhite" )
 		self:SetRenderMode( RENDERMODE_TRANSCOLOR )
-		
-		if self.entries then -- Basically if it's duped d:
-			net.Start( "SetTextscreenText" )
-			net.WriteUInt( self:EntIndex(), MAX_EDICT_BITS )
-			net.WriteUInt( #self.entries, 8 )
-			net.WriteBool( self.fullbright )
-			net.WriteBool( self.pixelized )
-			for i = 1, #self.entries do
-				net.WriteString( self.entries[i].text )
-				net.WriteString( self.entries[i].effectData.font )
-				net.WriteFloat( self.entries[i].effectData.size )
-				net.WriteString( self.entries[i].effectData.style )
-				net.WriteString( self.entries[i].effectData.weight )
-				net.WriteColor( tableToColor( self.entries[i].effectData.color ) )
-				net.WriteFloat( self.entries[i].effectData.stroke )
-				net.WriteColor( tableToColor( self.entries[i].effectData.strokeColor ) )
-				net.WriteFloat( self.entries[i].effectData.shadowBlur )
-				net.WriteColor( tableToColor( self.entries[i].effectData.shadowColor ) )
-				net.WriteFloat( self.entries[i].effectData.shadowOffset[1] )
-				net.WriteFloat( self.entries[i].effectData.shadowOffset[2] )
-			end
-			net.Broadcast()
-
-			self:PhysicsInitBox( -self.boxSize * 0.5, self.boxSize * 0.5 )
-			self:SetCollisionBounds( -self.boxSize * 0.5, self.boxSize * 0.5 )
-			self:SetMoveType( MOVETYPE_VPHYSICS )
-			self:SetSolid( SOLID_VPHYSICS )
-			self:EnableCustomCollisions( true )
-
-			self:SetCollisionGroup( COLLISION_GROUP_WORLD )
-			local mass = 50
-			self:GetPhysicsObject():SetMass( mass )
-			self:SetSolidFlags( 0 )
-			self:AddSolidFlags( FSOLID_CUSTOMRAYTEST )
-			self:AddSolidFlags( FSOLID_CUSTOMBOXTEST )
-
-			self:CollisionRulesChanged()
-
-			self.PhysCollide = CreatePhysCollideBox( -self.boxSize * 0.5, self.boxSize * 0.5 )
-		end
 	end
 
 	if CLIENT then
@@ -256,12 +216,65 @@ function ENT:Initialize()
 end
 
 if SERVER then
+	TEXTSCREEN_REVAMPED.SetTextscreenTextQueue = TEXTSCREEN_REVAMPED.SetTextscreenTextQueue or {}
 	function ENT:OnDuplicated( data )
-		net.Start( "SetTextscreenText" )
-		net.WriteTable( data.entries )
-		net.WriteBool( data.fullbright )
-		net.WriteInt( self:EntIndex(), 32 )
-		net.Broadcast()
+		self.entries = data.entries
+		self.boxSize = data.Mins - data.Maxs
+		self.fullbright = data.fullbright
+		self.pixelized = data.pixelized
+		self.parent = data.parent
+
+		table.insert( TEXTSCREEN_REVAMPED.SetTextscreenTextQueue, {
+			entries = data.entries,
+			fullbright = data.fullbright,
+			pixelized = data.pixelized,
+			entindex = self:EntIndex()
+		} )
+
+		timer.Create( "SetTextscreenTextQueue", 0.1, 0, function()
+			if #TEXTSCREEN_REVAMPED.SetTextscreenTextQueue == 0 then
+				timer.Remove( "SetTextscreenTextQueue" )
+				return
+			end
+			local screenData = table.remove( TEXTSCREEN_REVAMPED.SetTextscreenTextQueue, 1 )
+			net.Start( "SetTextscreenText" )
+			net.WriteUInt( screenData.entindex, MAX_EDICT_BITS )
+			net.WriteUInt( #screenData.entries, 8 )
+			net.WriteBool( screenData.fullbright )
+			net.WriteBool( screenData.pixelized )
+			for i = 1, #screenData.entries do
+				net.WriteString( screenData.entries[i].text )
+				net.WriteString( screenData.entries[i].effectData.font )
+				net.WriteFloat( screenData.entries[i].effectData.size )
+				net.WriteString( screenData.entries[i].effectData.style )
+				net.WriteString( screenData.entries[i].effectData.weight )
+				net.WriteColor( tableToColor( screenData.entries[i].effectData.color ) )
+				net.WriteFloat( screenData.entries[i].effectData.stroke )
+				net.WriteColor( tableToColor( screenData.entries[i].effectData.strokeColor ) )
+				net.WriteFloat( screenData.entries[i].effectData.shadowBlur )
+				net.WriteColor( tableToColor( screenData.entries[i].effectData.shadowColor ) )
+				net.WriteFloat( screenData.entries[i].effectData.shadowOffset[1] )
+				net.WriteFloat( screenData.entries[i].effectData.shadowOffset[2] )
+			end
+			net.Broadcast()
+
+			self:PhysicsInitBox( -self.boxSize * 0.5, self.boxSize * 0.5 )
+			self:SetCollisionBounds( -self.boxSize * 0.5, self.boxSize * 0.5 )
+			self:SetMoveType( MOVETYPE_VPHYSICS )
+			self:SetSolid( SOLID_VPHYSICS )
+			self:EnableCustomCollisions( true )
+
+			self:SetCollisionGroup( COLLISION_GROUP_WORLD )
+			local mass = 50
+			self:GetPhysicsObject():SetMass( mass )
+			self:SetSolidFlags( 0 )
+			self:AddSolidFlags( FSOLID_CUSTOMRAYTEST )
+			self:AddSolidFlags( FSOLID_CUSTOMBOXTEST )
+
+			self:CollisionRulesChanged()
+
+			self.PhysCollide = CreatePhysCollideBox( -self.boxSize * 0.5, self.boxSize * 0.5 )
+		end )
 	end
 end
 

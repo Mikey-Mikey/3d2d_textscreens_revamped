@@ -163,13 +163,6 @@ if SERVER then
 	local function SpawnTextscreen( ply, data )
 		if not ply:CheckLimit( "revamped_textscreens" ) then return end
 		local ent = ents.Create( "revamped_textscreen" ) --duplicator.GenericDuplicatorFunction( ply, data )
-		ent.boxSize = data.Mins - data.Maxs
-		ent.entries = data.entries
-		ent.fullbright = data.fullbright
-		ent.pixelized = data.pixelized
-		ent.parent = data.parent
-
-		PrintTable( data )
 
 		ent:SetPos( data.Pos )
 		ent:SetAngles( data.Angle )
