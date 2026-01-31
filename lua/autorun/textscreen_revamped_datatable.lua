@@ -15,6 +15,7 @@ if CLIENT then
         "Oxanium",
         "Pricedown",
         "Segment",
+        "Smash",
         "Spicy Sale",
     }
 
