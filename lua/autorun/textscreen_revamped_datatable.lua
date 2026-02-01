@@ -8,9 +8,13 @@ if CLIENT then
         "Comic Sans MS",
 
         -- These are custom fonts
+        "Anime Ace",
+        "Badaboom BB",
         "Coolvetica",
         "Game Box",
         "Gas",
+        "HalfLife2",
+        "Hitmarker",
         "Open Sans",
         "Oxanium",
         "Pricedown",
