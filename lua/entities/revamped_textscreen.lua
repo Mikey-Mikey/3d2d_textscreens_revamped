@@ -61,6 +61,12 @@ else
 
 	-- This is used to scale the textscreen physics based on the text length
 	net.Receive( "SetTextscreenText", function( _, ply )
+		local allowed = TEXTSCREEN_REVAMPED.RatelimitPlayer( ply, "set_textscreen_text", TEXTSCREEN_REVAMPED.RateLimitCVar:GetFloat(), 1 )
+
+		if not allowed then
+			return
+		end
+
 		local textscreen = net.ReadEntity()
 
 		if not IsValid( textscreen ) then return end
@@ -158,6 +164,11 @@ else
 
 	net.Receive( "InitTextscreenText", function( _, ply )
 		local textscreenId = net.ReadUInt( MAX_EDICT_BITS )
+		local allowed = TEXTSCREEN_REVAMPED.RatelimitPlayer( ply, "init_textscreen_text", TEXTSCREEN_REVAMPED.RateLimitCVar:GetFloat(), 1 )
+		print( allowed )
+		if not allowed then
+			return
+		end
 
 		local entryCount = net.ReadUInt( 8 )
 		local fullbright = net.ReadBool()

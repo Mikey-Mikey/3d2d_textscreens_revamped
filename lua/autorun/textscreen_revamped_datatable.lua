@@ -1,5 +1,30 @@
 TEXTSCREEN_REVAMPED = TEXTSCREEN_REVAMPED or {}
 
+function TEXTSCREEN_REVAMPED.RatelimitPlayer( ply, name, buffer, refill, message )
+	local ratelimitName = "revamped_textscreen_ratelimit_" .. name
+	local checkName = "revamped_textscreen_ratelimit_check_" .. name
+
+	if not ply[ratelimitName] then ply[ratelimitName] = buffer end
+
+	local curTime = CurTime()
+	if not ply[checkName] then ply[checkName] = curTime end
+
+	local dripSize = curTime - ply[checkName]
+	ply[checkName] = curTime
+
+	local drip = dripSize / refill
+	local newVal = ply[ratelimitName] + drip
+
+	ply[ratelimitName] = math.Clamp(newVal, 0, buffer)
+
+	if ply[ratelimitName] >= 1 then
+		ply[ratelimitName] = ply[ratelimitName] - 1
+		return true
+	else
+		return false
+	end
+end
+
 if CLIENT then
     TEXTSCREEN_REVAMPED.FONTS = {
         -- These are the default fonts 

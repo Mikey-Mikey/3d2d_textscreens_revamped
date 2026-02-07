@@ -117,13 +117,6 @@ if CLIENT then
 	net.Receive( "InitTextscreenText", function()
 		local ply = LocalPlayer()
 
-		if ply.textscreen_revamped and ply.textscreen_revamped.lastTextscreenUpdate and CurTime() - ply.textscreen_revamped.lastTextscreenUpdate < 0.25 then
-			return
-		end
-
-		ply.textscreen_revamped = ply.textscreen_revamped or {}
-		ply.textscreen_revamped.lastTextscreenUpdate = CurTime()
-
 		local textscreenId = net.ReadInt( 32 )
 		local entries = ply.textscreen_revamped.entries
 
@@ -180,18 +173,19 @@ if SERVER then
 end
 
 function TOOL:LeftClick( trace )
-	if CLIENT then return true end
-
 	local ply = self:GetOwner()
+	local allowed = TEXTSCREEN_REVAMPED.RatelimitPlayer( ply, "tool_textscreen_text", TEXTSCREEN_REVAMPED.RateLimitCVar:GetFloat(), 1 )
+	if CLIENT then return allowed end
 
-	if not ply:CheckLimit( "revamped_textscreens" ) then return true end
+	
 
-	if ply.textscreen_revamped and ply.textscreen_revamped.lastTextscreenUpdate and CurTime() - ply.textscreen_revamped.lastTextscreenUpdate < 0.25 then
+	--print( allowed )
+
+	if not allowed then
 		return false
 	end
 
-	ply.textscreen_revamped = ply.textscreen_revamped or {}
-	ply.textscreen_revamped.lastTextscreenUpdate = CurTime()
+	if not ply:CheckLimit( "revamped_textscreens" ) then return true end
 
 	if CPPI and self:GetClientBool( "should_parent" ) and IsValid( trace.Entity ) then
 		local traceEnt = trace.Entity
@@ -248,19 +242,25 @@ end
 
 
 function TOOL:Reload()
-	if CLIENT then return true end
+	local ply = self:GetOwner()
+	local allowed = TEXTSCREEN_REVAMPED.RatelimitPlayer( ply, "tool_textscreen_text", TEXTSCREEN_REVAMPED.RateLimitCVar:GetFloat(), 1 )
+	if CLIENT then return allowed end
 
-	if not self:GetOwner():CheckLimit( "revamped_textscreens" ) then return true end
+	if not ply:CheckLimit( "revamped_textscreens" ) then return true end
+
+	if not allowed then
+		return false
+	end
 
 	local trace = util.TraceLine( {
-		start = self:GetOwner():GetShootPos(),
-		endpos = self:GetOwner():GetShootPos() + self:GetOwner():GetAimVector() * 100,
-		filter = self:GetOwner()
+		start = ply:GetShootPos(),
+		endpos = ply:GetShootPos() + ply:GetAimVector() * 100,
+		filter = ply
 	} )
 
 	if CPPI and self:GetClientBool( "should_parent" ) and IsValid( trace.Entity ) then
 		local traceEnt = trace.Entity
-		if not traceEnt:CPPICanTool( self:GetOwner() ) then return false end
+		if not traceEnt:CPPICanTool( ply ) then return false end
 	end
 
 	local placeAng = trace.Normal:Angle()
@@ -268,7 +268,7 @@ function TOOL:Reload()
 	if trace.Hit then
 		placeAng = trace.HitNormal:Angle()
 		if math.abs( trace.HitNormal[3] ) > 0.95 then
-			local offset = self:GetOwner():GetShootPos() - trace.HitPos
+			local offset = ply:GetShootPos() - trace.HitPos
 
 			local upDot = placeAng:Up():Dot( offset:GetNormalized() )
 			local rightDot = placeAng:Right():Dot( offset:GetNormalized() )
@@ -280,49 +280,56 @@ function TOOL:Reload()
 	local ent = ents.Create( "revamped_textscreen" )
 	ent:SetPos( trace.HitPos )
 	ent:SetAngles( placeAng )
-	ent:SetNWEntity( "owner", self:GetOwner() )
+	ent:SetNWEntity( "owner", ply )
 	ent:Spawn()
 	ent:Activate()
 
 	if CPPI then
-		ent:CPPISetOwner( self:GetOwner() )
+		ent:CPPISetOwner( ply )
 	end
 
 	if not IsValid( ent ) then return end
 
 	net.Start( "InitTextscreenText" )
 	net.WriteInt( ent:EntIndex(), 32 )
-	net.Send( self:GetOwner() )
+	net.Send( ply )
 
 	if self:GetClientBool( "should_parent" ) and IsValid( trace.Entity ) then
 		ent:SetParent( trace.Entity )
 	end
 
 	undo.Create( "Text Screen" )
-	undo.SetPlayer( self:GetOwner() )
+	undo.SetPlayer( ply )
 	undo.AddEntity( ent )
 	undo.Finish()
 
-	self:GetOwner():AddCount( "revamped_textscreens", ent )
+	ply:AddCount( "revamped_textscreens", ent )
 
 	return true
 end
 
 function TOOL:RightClick( trace )
+	local ply = self:GetOwner()
+	local allowed = TEXTSCREEN_REVAMPED.RatelimitPlayer( ply, "tool_textscreen_text", TEXTSCREEN_REVAMPED.RateLimitCVar:GetFloat(), 1 )
 	if CLIENT then
-		return IsValid( trace.Entity ) and trace.Entity:GetClass() == "revamped_textscreen"
+		return allowed and IsValid( trace.Entity ) and trace.Entity:GetClass() == "revamped_textscreen"
 	end
+
+	if not allowed then
+		return false
+	end
+
 	local ent = trace.Entity
 
 	if CPPI and IsValid( ent ) then
 		local traceEnt = ent
-		if not traceEnt:CPPICanTool( self:GetOwner() ) then return false end
+		if not traceEnt:CPPICanTool( ply ) then return false end
 	end
 
 	if IsValid( ent ) and ent:GetClass() == "revamped_textscreen" then
 		net.Start( "InitTextscreenText" )
 		net.WriteInt( ent:EntIndex(), 32 )
-		net.Send( self:GetOwner() )
+		net.Send( ply )
 
 		return true
 	end
