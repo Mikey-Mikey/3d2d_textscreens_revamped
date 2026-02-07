@@ -165,7 +165,7 @@ else
 	net.Receive( "InitTextscreenText", function( _, ply )
 		local textscreenId = net.ReadUInt( MAX_EDICT_BITS )
 		local allowed = TEXTSCREEN_REVAMPED.RatelimitPlayer( ply, "init_textscreen_text", TEXTSCREEN_REVAMPED.RateLimitCVar:GetFloat(), 1 )
-		print( allowed )
+
 		if not allowed then
 			return
 		end

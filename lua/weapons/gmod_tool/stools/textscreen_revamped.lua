@@ -177,10 +177,6 @@ function TOOL:LeftClick( trace )
 	local allowed = TEXTSCREEN_REVAMPED.RatelimitPlayer( ply, "tool_textscreen_text", TEXTSCREEN_REVAMPED.RateLimitCVar:GetFloat(), 1 )
 	if CLIENT then return allowed end
 
-	
-
-	--print( allowed )
-
 	if not allowed then
 		return false
 	end
