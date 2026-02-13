@@ -126,7 +126,9 @@ else
 		local textscreens = ents.FindByClass( "revamped_textscreen" )
 		local retrieveCor = coroutine.wrap( function()
 			for _, textscreen in ipairs( textscreens ) do
+				if not IsValid( textscreen ) then continue end
 				local entries = textscreen.entries
+				if not entries then continue end
 				local fullbright = textscreen.fullbright
 				local pixelized = textscreen.pixelized
 
