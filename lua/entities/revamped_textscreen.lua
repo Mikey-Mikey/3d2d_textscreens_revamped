@@ -99,7 +99,13 @@ else
 		local fullbright = net.ReadBool()
 		local pixelized = net.ReadBool()
 
-		local block = hook.Run( "RevampedTextscreen_CanCreate", textscreen:GetNWEntity( "owner" ), entries )
+		local totalText = ""
+		for i = 1, entryCount do
+			totalText = totalText .. entries[i].text .. "\n"
+		end
+		totalText = string.Trim( totalText )
+
+		local block = hook.Run( "RevampedTextscreen_CanCreate", textscreen:GetNWEntity( "owner" ), totalText, textscreen, entries )
 		
 		if block then
 			SafeRemoveEntityDelayed( textscreen, 0 )
