@@ -46,6 +46,7 @@ if CLIENT then
         "Segment",
         "Smash",
         "Spicy Sale",
+        "TF2 Build",
     }
 
     --- Adds a new font to the list of available fonts
