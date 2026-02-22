@@ -77,6 +77,16 @@ if CLIENT then
 				return
 			end
 
+			if not ent.SetFullbright then
+				timer.Remove( "WaitForTextscreen" .. tostring( textscreenId ) )
+				return
+			end
+
+			if not ent.SetPixelized then
+				timer.Remove( "WaitForTextscreen" .. tostring( textscreenId ) )
+				return
+			end
+
 			ent:SetFullbright( fullbright )
 			ent:SetPixelized( pixelized )
 			ent.entries = entries
