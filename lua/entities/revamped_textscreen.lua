@@ -20,8 +20,8 @@ else
 
 	CreateConVar( "sbox_maxrevamped_textscreens", 10, { FCVAR_NOTIFY }, "Maximum textscreens a single player can create" )
 
-	function tableToColor( tbl )
-		return Color( tbl.r, tbl.g, tbl.b, tbl.a )
+	local function ToColor( tbl )
+		return Color( tbl.r, tbl.g, tbl.b, tbl.a ) or Color( tbl[1], tbl[2], tbl[3], tbl[4] )
 	end
 
 	function SetTextscreenText( textscreen, width, height )
@@ -89,11 +89,11 @@ else
 			entries[i].effectData.size = net.ReadFloat()
 			entries[i].effectData.style = net.ReadString()
 			entries[i].effectData.weight = net.ReadString()
-			entries[i].effectData.color = net.ReadColor()
+			entries[i].effectData.color = ToColor( net.ReadColor() )
 			entries[i].effectData.stroke = net.ReadFloat()
-			entries[i].effectData.strokeColor = net.ReadColor()
+			entries[i].effectData.strokeColor = ToColor( net.ReadColor() )
 			entries[i].effectData.shadowBlur = net.ReadFloat()
-			entries[i].effectData.shadowColor = net.ReadColor()
+			entries[i].effectData.shadowColor = ToColor( net.ReadColor() )
 			entries[i].effectData.shadowOffset = { net.ReadFloat(), net.ReadFloat() }
 		end
 		local fullbright = net.ReadBool()
@@ -286,11 +286,11 @@ if SERVER then
 				net.WriteFloat( screenData.entries[i].effectData.size )
 				net.WriteString( screenData.entries[i].effectData.style )
 				net.WriteString( screenData.entries[i].effectData.weight )
-				net.WriteColor( tableToColor( screenData.entries[i].effectData.color ) )
+				net.WriteColor( ToColor( screenData.entries[i].effectData.color ) )
 				net.WriteFloat( screenData.entries[i].effectData.stroke )
-				net.WriteColor( tableToColor( screenData.entries[i].effectData.strokeColor ) )
+				net.WriteColor( ToColor( screenData.entries[i].effectData.strokeColor ) )
 				net.WriteFloat( screenData.entries[i].effectData.shadowBlur )
-				net.WriteColor( tableToColor( screenData.entries[i].effectData.shadowColor ) )
+				net.WriteColor( ToColor( screenData.entries[i].effectData.shadowColor ) )
 				net.WriteFloat( screenData.entries[i].effectData.shadowOffset[1] )
 				net.WriteFloat( screenData.entries[i].effectData.shadowOffset[2] )
 			end
