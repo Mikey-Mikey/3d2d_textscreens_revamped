@@ -12,6 +12,10 @@ ENT.AutomaticFrameAdvance = true
 AddCSLuaFile( "includes/3d2dvgui.lua" )
 AddCSLuaFile( "includes/purify.lua" )
 
+local function ToColor( tbl )
+	return Color( tbl.r, tbl.g, tbl.b, tbl.a ) or Color( tbl[1], tbl[2], tbl[3], tbl[4] )
+end
+
 if CLIENT then
 	include( "includes/3d2dvgui.lua" )
 	language.Add("sboxlimit_revamped_textscreens", "You've hit the Textscreens limit!")
@@ -19,10 +23,6 @@ else
 	util.AddNetworkString( "RetrieveTextscreenText" )
 
 	CreateConVar( "sbox_maxrevamped_textscreens", 10, { FCVAR_NOTIFY }, "Maximum textscreens a single player can create" )
-
-	local function ToColor( tbl )
-		return Color( tbl.r, tbl.g, tbl.b, tbl.a ) or Color( tbl[1], tbl[2], tbl[3], tbl[4] )
-	end
 
 	function SetTextscreenText( textscreen, width, height )
 		if not IsValid( textscreen ) or textscreen.boxSize then
