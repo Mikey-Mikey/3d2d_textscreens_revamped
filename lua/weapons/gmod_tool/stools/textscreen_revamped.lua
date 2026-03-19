@@ -167,8 +167,12 @@ if SERVER then
 	local function SpawnTextscreen( ply, data )
 		if not ply:CheckLimit( "revamped_textscreens" ) then return end
 		local ent = ents.Create( "revamped_textscreen" ) --duplicator.GenericDuplicatorFunction( ply, data )
-
-		ent.boxSize = data.Mins - data.Maxs
+		
+		if data.Mins and data.Maxs then
+			ent.boxSize = data.Mins - data.Maxs
+		else
+			ent.boxSize = Vector( 12, 12, 12 )
+		end
 
 		ent:SetPos( data.Pos )
 		ent:SetAngles( data.Angle )
