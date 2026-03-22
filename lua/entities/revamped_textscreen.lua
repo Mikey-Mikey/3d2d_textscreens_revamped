@@ -274,7 +274,11 @@ if SERVER then
 				timer.Remove( "SetTextscreenTextQueue" )
 				return
 			end
+
 			local screenData = table.remove( TEXTSCREEN_REVAMPED.SetTextscreenTextQueue, 1 )
+			
+			if not screenData.entries then return end
+
 			net.Start( "SetTextscreenText" )
 			net.WriteUInt( screenData.entindex, MAX_EDICT_BITS )
 			net.WriteUInt( #screenData.entries, 8 )
