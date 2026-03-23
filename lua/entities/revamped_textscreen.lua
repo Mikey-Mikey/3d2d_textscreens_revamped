@@ -164,6 +164,10 @@ else
 		end )
 
 		timer.Create( "RetrieveTextscreenText" .. tostring( ply ), 0.1, 0, function()
+			if not IsValid( ply ) then
+				timer.Remove( "RetrieveTextscreenText" .. tostring( ply ) )
+				return
+			end
 			if retrieveCor() then
 				timer.Remove( "RetrieveTextscreenText" .. tostring( ply ) )
 			end
