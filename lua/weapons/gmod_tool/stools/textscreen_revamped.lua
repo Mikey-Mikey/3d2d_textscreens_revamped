@@ -20,7 +20,7 @@ end
 
 TOOL.Author = "Mikey"
 TOOL.Name = "#tool.textscreen_revamped.name"
-TOOL.Category = "#tool.textscreen_revamped.category"
+TOOL.Category = "Render"
 TOOL.ClientConVar["should_parent"] = 1
 TOOL.ClientConVar["fullbright"] = 1
 TOOL.ClientConVar["pixelized"] = 0
@@ -39,7 +39,7 @@ if CLIENT then
 	}
 
 	language.Add( "tool.textscreen_revamped.name", "Text Screen Revamped" )
-	language.Add( "tool.textscreen_revamped.category", "Text Screens Revamped" )
+	language.Add( "tool.textscreen_revamped.category", "Render" )
 	language.Add( "tool.textscreen_revamped.desc", "Creates a text screen." )
 	language.Add( "tool.textscreen_revamped.left", "Create a Text Screen." )
 	language.Add( "tool.textscreen_revamped.right", "Update a Text Screen." )
