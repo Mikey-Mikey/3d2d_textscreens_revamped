@@ -99,6 +99,8 @@ if CLIENT then
 	net.Receive( "RetrieveTextscreenText", function()
 		local textscreen = net.ReadEntity()
 		if not IsValid( textscreen ) then return end
+		if textscreen:GetClass() ~= "revamped_textscreen" then return end
+		
 		local entryCount = net.ReadUInt( 8 )
 		local fullbright = net.ReadBool()
 		local pixelized = net.ReadBool()
