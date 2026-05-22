@@ -174,9 +174,26 @@ else
 		end )
 	end
 
+	local function sanitizeHTMLString( str )
+		local outStr = str
+		outStr = string.Replace( outStr, "<", "&lt;" )
+		outStr = string.Replace( outStr, ">", "&gt;" )
+		return outStr
+	end
+
 	net.Receive( "InitTextscreenText", function( _, ply )
 		local textscreenId = net.ReadUInt( MAX_EDICT_BITS )
 		local allowed = TEXTSCREEN_REVAMPED.RatelimitPlayer( ply, "init_textscreen_text", TEXTSCREEN_REVAMPED.RateLimitCVar:GetFloat(), 1 )
+
+		-- owner check
+		local textscreen = Entity( textscreenId )
+		if not IsValid( textscreen ) then return end
+		if textscreen:GetClass() ~= "revamped_textscreen" then return end
+		if CPPI and textscreen:CPPIGetOwner() ~= ply then
+			return
+		elseif textscreen:GetNWEntity( "owner" ) ~= ply then
+			return
+		end
 
 		if not allowed then
 			return
@@ -192,12 +209,12 @@ else
 		net.WriteBool( fullbright )
 		net.WriteBool( pixelized )
 		for i = 1, entryCount do
-			net.WriteString( net.ReadString() )
+			net.WriteString( sanitizeHTMLString( net.ReadString() ) )
 
-			net.WriteString( net.ReadString() )
+			net.WriteString( sanitizeHTMLString( net.ReadString() ) )
 			net.WriteFloat( net.ReadFloat() )
-			net.WriteString( net.ReadString() )
-			net.WriteString( net.ReadString() )
+			net.WriteString( sanitizeHTMLString( net.ReadString() ) )
+			net.WriteString( sanitizeHTMLString( net.ReadString() ) )
 			net.WriteColor( net.ReadColor() )
 			net.WriteFloat( net.ReadFloat() )
 			net.WriteColor( net.ReadColor() )
