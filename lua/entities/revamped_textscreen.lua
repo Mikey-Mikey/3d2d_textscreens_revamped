@@ -512,7 +512,7 @@ if CLIENT then
 		local txt = ""
 		for i, entry in ipairs( entries ) do
 			local entryTxt = entry.text
-			
+			entryTxt = sanitizeHTMLString( entryTxt )
 			txt = txt .. string.format( [[
 				<text style="
 				--font: %s;
@@ -543,7 +543,6 @@ if CLIENT then
 
 		txt = string.Replace( txt, ">\n", ">" ) -- Remove line breaks right after tags
 		txt = string.TrimRight( txt )
-		txt = sanitizeHTMLString( txt )
 
 		--[[
 		self.htmlPanel:AddFunction( "textscreen", "sanitizeText", function( sanitizedText )
