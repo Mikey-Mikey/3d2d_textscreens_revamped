@@ -16,6 +16,15 @@ local function ToColor( tbl )
 	return Color( tbl.r, tbl.g, tbl.b, tbl.a ) or Color( tbl[1], tbl[2], tbl[3], tbl[4] )
 end
 
+local function sanitizeHTMLString( str )
+	local outStr = str
+	outStr = string.Replace( outStr, "<", "&lt;" )
+	outStr = string.Replace( outStr, ">", "&gt;" )
+	outStr = string.Replace( outStr, "\"", "&quot;" )
+	outStr = string.Replace( outStr, "'", "&#39;" )
+	return outStr
+end
+
 if CLIENT then
 	include( "includes/3d2dvgui.lua" )
 	language.Add("sboxlimit_revamped_textscreens", "You've hit the Textscreens limit!")
@@ -84,11 +93,11 @@ else
 		for i = 1, entryCount do
 			entries[i] = {}
 			entries[i].effectData = {}
-			entries[i].text = net.ReadString()
-			entries[i].effectData.font = net.ReadString()
+			entries[i].text = sanitizeHTMLString( net.ReadString() )
+			entries[i].effectData.font = sanitizeHTMLString( net.ReadString() )
 			entries[i].effectData.size = net.ReadFloat()
-			entries[i].effectData.style = net.ReadString()
-			entries[i].effectData.weight = net.ReadString()
+			entries[i].effectData.style = sanitizeHTMLString( net.ReadString() )
+			entries[i].effectData.weight = sanitizeHTMLString( net.ReadString() )
 			entries[i].effectData.color = ToColor( net.ReadColor() )
 			entries[i].effectData.stroke = net.ReadFloat()
 			entries[i].effectData.strokeColor = ToColor( net.ReadColor() )
@@ -172,13 +181,6 @@ else
 				timer.Remove( "RetrieveTextscreenText" .. tostring( ply ) )
 			end
 		end )
-	end
-
-	local function sanitizeHTMLString( str )
-		local outStr = str
-		outStr = string.Replace( outStr, "<", "&lt;" )
-		outStr = string.Replace( outStr, ">", "&gt;" )
-		return outStr
 	end
 
 	net.Receive( "InitTextscreenText", function( _, ply )
@@ -306,11 +308,11 @@ if SERVER then
 			net.WriteBool( screenData.fullbright )
 			net.WriteBool( screenData.pixelized )
 			for i = 1, #screenData.entries do
-				net.WriteString( screenData.entries[i].text )
-				net.WriteString( screenData.entries[i].effectData.font )
+				net.WriteString( sanitizeHTMLString( screenData.entries[i].text ) )
+				net.WriteString( sanitizeHTMLString( screenData.entries[i].effectData.font ) )
 				net.WriteFloat( screenData.entries[i].effectData.size )
-				net.WriteString( screenData.entries[i].effectData.style )
-				net.WriteString( screenData.entries[i].effectData.weight )
+				net.WriteString( sanitizeHTMLString( screenData.entries[i].effectData.style ) )
+				net.WriteString( sanitizeHTMLString( screenData.entries[i].effectData.weight ) )
 				net.WriteColor( ToColor( screenData.entries[i].effectData.color ) )
 				net.WriteFloat( screenData.entries[i].effectData.stroke )
 				net.WriteColor( ToColor( screenData.entries[i].effectData.strokeColor ) )
@@ -510,9 +512,7 @@ if CLIENT then
 		local txt = ""
 		for i, entry in ipairs( entries ) do
 			local entryTxt = entry.text
-			-- replace angle brackets with html safe
-			entryTxt = string.Replace( entryTxt, "<", "&lt;" )
-			entryTxt = string.Replace( entryTxt, ">", "&gt;" )
+			
 			txt = txt .. string.format( [[
 				<text style="
 				--font: %s;
@@ -543,6 +543,7 @@ if CLIENT then
 
 		txt = string.Replace( txt, ">\n", ">" ) -- Remove line breaks right after tags
 		txt = string.TrimRight( txt )
+		txt = sanitizeHTMLString( txt )
 
 		--[[
 		self.htmlPanel:AddFunction( "textscreen", "sanitizeText", function( sanitizedText )
