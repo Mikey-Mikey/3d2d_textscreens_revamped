@@ -410,7 +410,9 @@ if CLIENT then
 	function ENT:OnRemove()
 		if self.htmlPanel == nil then return end
 		self.htmlPanel:Remove()
-		self.PhysCollide:Destroy()
+		if IsValid( self.PhysCollide ) then
+			self.PhysCollide:Destroy()
+		end
 	end
 
 	function ENT:UpdateHTML()
