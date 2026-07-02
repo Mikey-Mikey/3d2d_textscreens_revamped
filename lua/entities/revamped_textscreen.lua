@@ -25,6 +25,9 @@ local function sanitizeHTMLString( str )
 	return outStr
 end
 
+local CharLimitCVar = TEXTSCREEN_REVAMPED.CharLimitCVar
+
+
 if CLIENT then
 	include( "includes/3d2dvgui.lua" )
 	language.Add("sboxlimit_revamped_textscreens", "You've hit the Textscreens limit!")
@@ -93,7 +96,7 @@ else
 		for i = 1, entryCount do
 			entries[i] = {}
 			entries[i].effectData = {}
-			entries[i].text = sanitizeHTMLString( net.ReadString() )
+			entries[i].text = sanitizeHTMLString( net.ReadString():Left( CharLimitCVar:GetInt() ) )
 			entries[i].effectData.font = sanitizeHTMLString( net.ReadString() )
 			entries[i].effectData.size = net.ReadFloat()
 			entries[i].effectData.style = sanitizeHTMLString( net.ReadString() )
@@ -153,7 +156,7 @@ else
 				net.WriteBool( fullbright )
 				net.WriteBool( pixelized )
 				for i = 1, #entries do
-					net.WriteString( entries[i].text )
+					net.WriteString( entries[i].text:Left( CharLimitCVar:GetInt() ) )
 					net.WriteString( entries[i].effectData.font )
 					net.WriteFloat( entries[i].effectData.size )
 					net.WriteString( entries[i].effectData.style )
@@ -211,7 +214,7 @@ else
 		net.WriteBool( fullbright )
 		net.WriteBool( pixelized )
 		for i = 1, entryCount do
-			net.WriteString( sanitizeHTMLString( net.ReadString() ) )
+			net.WriteString( sanitizeHTMLString( net.ReadString():Left( CharLimitCVar:GetInt() ) ) )
 
 			net.WriteString( sanitizeHTMLString( net.ReadString() ) )
 			net.WriteFloat( net.ReadFloat() )
@@ -308,7 +311,7 @@ if SERVER then
 			net.WriteBool( screenData.fullbright )
 			net.WriteBool( screenData.pixelized )
 			for i = 1, #screenData.entries do
-				net.WriteString( sanitizeHTMLString( screenData.entries[i].text ) )
+				net.WriteString( sanitizeHTMLString( screenData.entries[i].text:Left( CharLimitCVar:GetInt() ) ) )
 				net.WriteString( sanitizeHTMLString( screenData.entries[i].effectData.font ) )
 				net.WriteFloat( screenData.entries[i].effectData.size )
 				net.WriteString( sanitizeHTMLString( screenData.entries[i].effectData.style ) )

@@ -751,10 +751,22 @@ if CLIENT then
 			effectSheet:AddSheet( "Shadow", shadowPanel, "icon16/shading.png" )
 
 			function textEntry:OnChange()
-				if self:GetValue() == "" then
+				local text = self:GetValue()
+
+				if text == "" then
 					textSheet.entries[panel.lineId].text = "[Insert Text Here]"
 				else
-					textSheet.entries[panel.lineId].text = self:GetValue()
+					-- Clamp the amount of characters
+					local charLimit = TEXTSCREEN_REVAMPED.CharLimitCVar:GetInt()
+					local clamped = text:Left( charLimit )
+					textSheet.entries[panel.lineId].text = clamped
+
+					if #text > charLimit then
+						local caretPos = self:GetCaretPos()
+
+						self:SetText( clamped )
+						self:SetCaretPos( caretPos )
+					end
 				end
 				updateCurrentText()
 			end

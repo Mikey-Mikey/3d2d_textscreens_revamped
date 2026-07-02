@@ -5,3 +5,4 @@ if CLIENT then
 end
 
 TEXTSCREEN_REVAMPED.RateLimitCVar = CreateConVar( "textscreen_revamped_ratelimit", 10, { FCVAR_REPLICATED, FCVAR_ARCHIVE } )
+TEXTSCREEN_REVAMPED.CharLimitCVar = CreateConVar( "textscreen_revamped_charlimit", 100, { FCVAR_REPLICATED, FCVAR_ARCHIVE } )
