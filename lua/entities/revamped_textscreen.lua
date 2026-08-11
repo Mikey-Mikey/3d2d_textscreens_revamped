@@ -281,6 +281,10 @@ end
 if SERVER then
 	TEXTSCREEN_REVAMPED.SetTextscreenTextQueue = TEXTSCREEN_REVAMPED.SetTextscreenTextQueue or {}
 	function ENT:OnDuplicated( data )
+		if not data.Mins or not data.Maxs then
+			SafeRemoveEntity( self )
+			return
+		end
 		self.entries = data.entries
 		self.boxSize = data.Mins - data.Maxs
 		self.fullbright = data.fullbright
