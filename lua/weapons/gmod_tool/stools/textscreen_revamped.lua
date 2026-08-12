@@ -849,7 +849,7 @@ if CLIENT then
 		panel:AddItem( renderDistanceSlider )
 		panel:Help( "This controls the render distance of the textscreen. 0 = don't draw any textscreens" )
 
-		LocalPlayer().textscreen_revamped.entries = lastSavedEntries or {}
+		LocalPlayer().textscreen_revamped.entries = {}
 	end
 
 	hook.Add( "InitPostEntity", "TextscreenRevamped_PlayerInit", function()
