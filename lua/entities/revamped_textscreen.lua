@@ -83,7 +83,7 @@ else
 
 		if not IsValid( textscreen ) then return end
 		
-		if CPPI and not textscreen:CPPIGetOwner() == ply then
+		if CPPI and textscreen:CPPIGetOwner() ~= ply then
 			return
 		elseif textscreen:GetNWEntity( "owner" ) ~= ply then
 			return
